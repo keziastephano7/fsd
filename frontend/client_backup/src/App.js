@@ -5,6 +5,7 @@ import Signup from './pages/Signup';
 import Login from './pages/Login';
 import Feed from './pages/Feed';
 import Profile from './pages/Profile';
+import EditProfile from './pages/EditProfile';
 
 function App() {
   const [user, setUser] = useState(() => {
@@ -49,6 +50,7 @@ function App() {
           <Route path="/signup" element={<Signup onAuth={(u, t) => { setUser(u); setAuthToken(t); localStorage.setItem('user', JSON.stringify(u)); }} />} />
           <Route path="/login" element={<Login onAuth={(u, t) => { setUser(u); setAuthToken(t); localStorage.setItem('user', JSON.stringify(u)); }} />} />
           <Route path="/profile/:id" element={<Profile user={user} />} />
+          <Route path="/profile/:id/edit" element={<EditProfile />} />
         </Routes>
       </main>
     </div>
