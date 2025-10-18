@@ -3,6 +3,7 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const User = require('../models/User');
 
+
 // GET /api/users/:id - get profile
 router.get('/:id', async (req, res) => {
   try {
