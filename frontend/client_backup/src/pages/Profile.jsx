@@ -108,17 +108,17 @@ export default function Profile() {
         {profile.bio && <p className="text-neutral-600 dark:text-neutral-400 text-center mb-4">{profile.bio}</p>}
 
         {!loadingProfile && (
-          <div className="flex gap-2 mt-2 w-full">
+          <div className="flex justify-center mt-4 w-full">
             {isOwner && (
-              <button onClick={() => navigate(`/profile/${id}/edit`)} className="mt-2 px-4 py-2 bg-primary-600 text-white rounded-lg">
-                ✏️ Edit Profile
+              <button
+                onClick={() => navigate(`/profile/${id}/edit`)}
+                className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition"
+              >
+                Edit Profile
               </button>
             )}
-            {!isOwner && (
-              <></> 
-              // optionally you can remove Add Post and Message completely for other users
-            )}
           </div>
+
         )}
 
 
