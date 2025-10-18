@@ -6,11 +6,14 @@ export default function CreatePost({ onCreated }) {
   const [file, setFile] = useState(null);
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
+  const [loading, setLoading] = useState(false);
+
 
   const submit = async e => {
     e.preventDefault();
     setError('');
     setFieldErrors({});
+    setLoading(true);  // <--- start loading
     try {
       const fd = new FormData();
       fd.append('caption', caption);
@@ -28,8 +31,11 @@ export default function CreatePost({ onCreated }) {
       } else {
         setError(data?.message || 'Error creating post');
       }
+    } finally {
+      setLoading(false);  // <--- stop loading
     }
   };
+
 
   return (
     <div className="max-w-2xl mx-auto mt-6 p-6 bg-white rounded-xl shadow-md border border-secondary">
@@ -52,10 +58,20 @@ export default function CreatePost({ onCreated }) {
 
         <button
           type="submit"
-          className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-accent transition"
+          disabled={loading}
+          className="
+            flex-1 inline-flex items-center justify-center
+            px-4 py-2 rounded-lg font-medium
+            bg-primary-600 text-white
+            dark:bg-primary-500 dark:text-white
+            hover:bg-primary-700 dark:hover:bg-primary-600
+            border border-primary-700 dark:border-primary-600
+            transition disabled:opacity-60 disabled:cursor-not-allowed
+          "
         >
-          Post
+          {loading ? 'Posting...' : 'Post'}
         </button>
+
 
         {error && <p className="text-error text-sm mt-1">{error}</p>}
       </form>
