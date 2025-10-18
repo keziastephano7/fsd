@@ -81,7 +81,9 @@ export default function Profile() {
     return () => window.removeEventListener('user:updated', onUserUpdated);
   }, [id, loadProfile, user]);
 
-  const isOwner = !!user && (String(user.id || user._id) === String(id) || String(user.id || user._id) === String(profile?._id || profile?.id));
+  const isOwner = user && profile && String(user._id || user.id) === String(profile._id || profile.id);
+
+
 
   if (loadingProfile) return <p className="text-center mt-20 text-neutral-600 dark:text-neutral-400">Loading...</p>;
   if (!profile) return <p className="text-center mt-20 text-neutral-600 dark:text-neutral-400">Profile not found.</p>;
@@ -105,16 +107,21 @@ export default function Profile() {
         <h2 className="text-2xl font-semibold text-neutral-900 dark:text-neutral-100 mb-2">{profile.name}</h2>
         {profile.bio && <p className="text-neutral-600 dark:text-neutral-400 text-center mb-4">{profile.bio}</p>}
 
-        <div className="flex gap-2 mt-2 w-full">
-          {isOwner ? (
-            <button onClick={() => navigate(`/profile/${id}/edit`)} className="mt-2 px-4 py-2 bg-primary-600 text-white rounded-lg">✏️ Edit Profile</button>
-          ) : (
-            <>
-              <button onClick={() => navigate(`/create?author=${id}`)} className="mt-2 px-4 py-2 bg-primary-600 text-white rounded-lg">+ Add Post</button>
-              <Link to={`/messages/${profile._id || profile.id || id}`} className="mt-2 px-4 py-2 rounded-lg border border-neutral-200 dark:border-neutral-700 text-neutral-700 dark:text-neutral-200">Message</Link>
-            </>
-          )}
-        </div>
+        {!loadingProfile && (
+          <div className="flex gap-2 mt-2 w-full">
+            {isOwner && (
+              <button onClick={() => navigate(`/profile/${id}/edit`)} className="mt-2 px-4 py-2 bg-primary-600 text-white rounded-lg">
+                ✏️ Edit Profile
+              </button>
+            )}
+            {!isOwner && (
+              <></> 
+              // optionally you can remove Add Post and Message completely for other users
+            )}
+          </div>
+        )}
+
+
       </div>
 
       <div className="flex-1 flex flex-col gap-4">
