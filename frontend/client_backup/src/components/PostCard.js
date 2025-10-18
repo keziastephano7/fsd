@@ -49,16 +49,16 @@ export default function PostCard({ post, onUpdate }) {
   const isAuthor = String(post.author?._id || post.author) === String(currentUserId);
 
   return (
-    <div className="bg-white rounded-xl shadow p-4 hover:shadow-md transition-shadow">
+    <div className="bg-white rounded-xl shadow p-4 hover:shadow-lg transition mb-6 border border-secondary">
       {/* --- Post Header --- */}
       <div className="flex items-center justify-between mb-2">
         <Link
           to={`/profile/${post.author._id || post.author}`}
-          className="font-semibold text-blue-600 hover:underline"
+          className="font-semibold text-primary hover:text-accent"
         >
           {post.author.name || post.author}
         </Link>
-        <span className="text-sm text-gray-500">
+        <span className="text-muted text-sm">
           {new Date(post.createdAt).toLocaleString()}
         </span>
       </div>
@@ -73,14 +73,14 @@ export default function PostCard({ post, onUpdate }) {
       )}
 
       {/* --- Caption --- */}
-      <p className="text-gray-800 mb-3">{post.caption}</p>
+      <p className="text-darkText mb-3">{post.caption}</p>
 
       {/* --- Actions --- */}
       <div className="flex flex-wrap items-center gap-4 text-sm mb-2">
         <button
           onClick={toggleLike}
-          className={`font-medium ${
-            liked ? 'text-red-500' : 'text-gray-600 hover:text-blue-600'
+          className={`font-medium transition ${
+            liked ? 'text-error' : 'text-darkText hover:text-primary'
           }`}
         >
           {liked ? '❤️ Unlike' : '🤍 Like'} ({likes})
@@ -88,7 +88,7 @@ export default function PostCard({ post, onUpdate }) {
 
         <button
           onClick={() => setShowComments((s) => !s)}
-          className="text-gray-600 hover:text-blue-600"
+          className="text-darkText hover:text-primary"
         >
           {showComments ? 'Hide Comments' : '💬 Comments'}
         </button>
@@ -97,14 +97,14 @@ export default function PostCard({ post, onUpdate }) {
           <>
             <button
               onClick={() => setEditing(true)}
-              className="text-yellow-600 hover:text-yellow-700"
+              className="text-secondary hover:text-accent transition"
             >
               ✏️ Edit
             </button>
 
             <button
               onClick={deletePost}
-              className="text-red-600 hover:text-red-700"
+              className="text-error hover:text-darkPink transition"
             >
               🗑️ Delete
             </button>
@@ -123,7 +123,7 @@ export default function PostCard({ post, onUpdate }) {
 
       {/* --- Comments Section --- */}
       {showComments && (
-        <div className="border-t border-gray-200 mt-3 pt-3 space-y-2">
+        <div className="border-t border-secondary mt-3 pt-3 space-y-2">
           <CommentList key={newComment?._id || post._id} postId={post._id} />
           <CommentForm
             postId={post._id}

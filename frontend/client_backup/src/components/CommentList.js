@@ -1,8 +1,7 @@
-// frontend/client/src/components/CommentList.js
 import React, { useEffect, useState } from 'react';
 import API from '../api';
 
-export default function CommentList({ postId, initial = [] , onRemoved }) {
+export default function CommentList({ postId, initial = [], onRemoved }) {
   const [comments, setComments] = useState(initial);
   const [loading, setLoading] = useState(!initial.length);
 
@@ -32,24 +31,31 @@ export default function CommentList({ postId, initial = [] , onRemoved }) {
     }
   };
 
-  if (loading) return <p>Loading comments...</p>;
-  if (!comments.length) return <p style={{ color: '#666' }}>No comments yet — be the first 👇</p>;
+  if (loading) return <p className="text-center text-muted mt-2">Loading comments...</p>;
+  if (!comments.length) return <p className="text-center text-muted mt-2">No comments yet — be the first 👇</p>;
+
+  const currentUserId = JSON.parse(localStorage.getItem('user') || '{}').id 
+                        || JSON.parse(localStorage.getItem('user') || '{}')._id;
 
   return (
-    <div>
+    <div className="space-y-3 mt-2">
       {comments.map(c => (
-        <div key={c._id} style={{ padding: 8, borderBottom: '1px solid #eee' }}>
-          <div style={{ fontSize: 14 }}>
-            <strong>{c.author?.name || 'User'}</strong>
-            <span style={{ marginLeft: 8, color: '#666', fontSize: 12 }}>
-              {new Date(c.createdAt).toLocaleString()}
-            </span>
-            {/* show delete button if current user */}
-            {String(c.author?._id || c.author) === String(JSON.parse(localStorage.getItem('user') || '{}').id || JSON.parse(localStorage.getItem('user') || '{}')._id) && (
-              <button onClick={() => remove(c._id)} style={{ float: 'right', background: 'transparent', color: '#ff6b6b', border: 'none' }}>Delete</button>
+        <div key={c._id} className="p-3 bg-lightGray rounded-lg border border-secondary shadow-sm">
+          <div className="flex justify-between items-start text-sm text-darkText">
+            <div>
+              <strong className="text-deepPurple">{c.author?.name || 'User'}</strong>
+              <span className="ml-2 text-muted text-xs">{new Date(c.createdAt).toLocaleString()}</span>
+            </div>
+            {String(c.author?._id || c.author) === String(currentUserId) && (
+              <button
+                onClick={() => remove(c._id)}
+                className="text-error hover:underline text-xs bg-transparent border-none"
+              >
+                Delete
+              </button>
             )}
           </div>
-          <div style={{ marginTop: 6 }}>{c.text}</div>
+          <p className="mt-1 text-darkText">{c.text}</p>
         </div>
       ))}
     </div>

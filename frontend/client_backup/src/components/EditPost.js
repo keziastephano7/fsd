@@ -20,7 +20,7 @@ export default function EditPost({ post, onSaved, onClose }) {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 
-      onSaved && onSaved(res.data); // notify parent to refresh
+      onSaved && onSaved(res.data);
       onClose && onClose();
     } catch (err) {
       console.error('Edit post failed:', err);
@@ -31,30 +31,43 @@ export default function EditPost({ post, onSaved, onClose }) {
   };
 
   return (
-    <div className="card" style={{ marginTop: 8 }}>
-      <h4>Edit Post</h4>
-      <form onSubmit={handleSubmit}>
+    <div className="max-w-2xl mx-auto mt-6 p-6 bg-white rounded-xl shadow-md border border-secondary">
+      <h4 className="text-lg font-semibold text-deepPurple mb-4">Edit Post</h4>
+      <form onSubmit={handleSubmit} className="space-y-4">
         <textarea
           value={caption}
           onChange={(e) => setCaption(e.target.value)}
           rows={3}
           placeholder="Update your caption"
+          className="w-full px-4 py-2 border border-secondary rounded-lg focus:outline-none focus:ring-2 focus:ring-primary resize-none bg-lightGray text-darkText"
         />
+
         <input
           type="file"
           accept="image/*"
           onChange={(e) => setFile(e.target.files[0])}
+          className="w-full text-darkText"
         />
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button type="submit" disabled={saving}>
+
+        <div className="flex gap-3">
+          <button
+            type="submit"
+            disabled={saving}
+            className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-accent transition disabled:opacity-50"
+          >
             {saving ? 'Saving...' : 'Save'}
           </button>
-          <button type="button" onClick={onClose}>
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 bg-secondary text-white rounded-lg hover:bg-darkPink transition"
+          >
             Cancel
           </button>
         </div>
+
+        {error && <p className="text-error text-sm mt-1">{error}</p>}
       </form>
-      {error && <p className="error">{error}</p>}
     </div>
   );
 }
