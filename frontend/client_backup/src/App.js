@@ -6,6 +6,8 @@ import Login from './pages/Login';
 import Feed from './pages/Feed';
 import Profile from './pages/Profile';
 import EditProfile from './pages/EditProfile';
+import './input.css';
+
 
 function App() {
   const [user, setUser] = useState(() => {
