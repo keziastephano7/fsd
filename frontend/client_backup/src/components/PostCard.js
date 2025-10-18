@@ -3,6 +3,8 @@ import API from '../api';
 import { Link } from 'react-router-dom';
 import CommentList from './CommentList';
 import CommentForm from './CommentForm';
+import EditPost from './EditPost';
+
 
 export default function PostCard({ post, onUpdate }) {
   const [likes, setLikes] = useState(post.likes?.length || 0);
@@ -10,6 +12,8 @@ export default function PostCard({ post, onUpdate }) {
   const [currentUserId, setCurrentUserId] = useState(null);
   const [showComments, setShowComments] = useState(false); // 👈 new state for showing/hiding comments
   const [newComment, setNewComment] = useState(null); // 👈 used to refresh comments instantly when added
+  const [editing, setEditing] = useState(false);
+
 
   useEffect(() => {
     try {
@@ -80,11 +84,25 @@ export default function PostCard({ post, onUpdate }) {
           {showComments ? 'Hide Comments' : 'Comments'}
         </button>
         {isAuthor && (
-          <button onClick={deletePost} className="danger">
-            Delete
-          </button>
+          <>
+            <button onClick={() => setEditing(true)}>
+              Edit
+            </button>
+
+            <button onClick={deletePost} className="danger">
+              Delete
+            </button>
+          </>
         )}
       </div>
+      {editing && (
+          <EditPost
+            post={post}
+            onSaved={() => onUpdate && onUpdate()}
+            onClose={() => setEditing(false)}
+          />
+        )}
+
 
       {/* --- Comments Section --- */}
       {showComments && (
