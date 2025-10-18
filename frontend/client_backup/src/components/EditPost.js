@@ -1,57 +1,16 @@
-import React, { useState, useEffect, useRef, useContext } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import API from '../api';
-import { useParams, useNavigate } from 'react-router-dom';
-import { AuthContext } from '../AuthContext';
 
-/**
- * EditProfile (modified)
- * - after successful update, re-fetch user and update AuthContext via updateUser()
- */
-
-const MAX_AVATAR_BYTES = 5 * 1024 * 1024; // 5 MB
-const DEFAULT_AVATAR =
-  'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160"><rect width="100%" height="100%" fill="%23e6eef8"/><text x="50%" y="50%" font-size="28" font-family="Helvetica, Arial, sans-serif" fill="%2334475a" text-anchor="middle" alignment-baseline="central">No image</text></svg>';
-
-export default function EditProfile() {
-  const { id } = useParams();
-  const nav = useNavigate();
-  const { user, updateUser } = useContext(AuthContext);
-
-  const [form, setForm] = useState({ name: '', bio: '' });
-  const [avatarFile, setAvatarFile] = useState(null);
-  const [preview, setPreview] = useState('');
-  const [removeAvatar, setRemoveAvatar] = useState(false);
-
+export default function EditPost({ post, onSaved, onClose }) {
+  const [caption, setCaption] = useState(post.caption || '');
+  const [file, setFile] = useState(null);
+  const [preview, setPreview] = useState(post.imageUrl || '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [successMsg, setSuccessMsg] = useState('');
 
   const objectUrlRef = useRef(null);
 
-  useEffect(() => {
-    let mounted = true;
-    const load = async () => {
-      try {
-        const res = await API.get(`/users/${id}`);
-        if (!mounted) return;
-        setForm({ name: res.data.name || '', bio: res.data.bio || '' });
-        if (res.data.avatarUrl) {
-          const url = /^https?:\/\//i.test(res.data.avatarUrl) || res.data.avatarUrl.startsWith('//')
-            ? res.data.avatarUrl
-            : `${window.location.origin}${res.data.avatarUrl}`;
-          setPreview(url);
-        } else {
-          setPreview(DEFAULT_AVATAR);
-        }
-      } catch (err) {
-        console.error('Failed to load user', err);
-        setPreview(DEFAULT_AVATAR);
-      }
-    };
-    load();
-    return () => { mounted = false; };
-  }, [id]);
-
+  // Cleanup object URL on unmount
   useEffect(() => {
     return () => {
       if (objectUrlRef.current) {
@@ -61,155 +20,90 @@ export default function EditProfile() {
     };
   }, []);
 
-  const handleChange = e => setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
-
   const handleFileChange = e => {
-    const file = e.target.files?.[0];
-    setError('');
-    setSuccessMsg('');
-    if (!file) return;
+    const selected = e.target.files?.[0];
+    if (!selected) return;
 
-    if (!file.type.startsWith('image/')) {
+    if (!selected.type.startsWith('image/')) {
       setError('Please select a valid image file.');
       return;
     }
 
-    if (file.size > MAX_AVATAR_BYTES) {
-      setError('Image is too large. Max size is 5MB.');
-      return;
-    }
-
     if (objectUrlRef.current) {
       URL.revokeObjectURL(objectUrlRef.current);
       objectUrlRef.current = null;
     }
 
-    const url = URL.createObjectURL(file);
+    const url = URL.createObjectURL(selected);
     objectUrlRef.current = url;
     setPreview(url);
-    setAvatarFile(file);
-    setRemoveAvatar(false);
-  };
-
-  const handleRemoveAvatar = () => {
-    if (objectUrlRef.current) {
-      URL.revokeObjectURL(objectUrlRef.current);
-      objectUrlRef.current = null;
-    }
-    setAvatarFile(null);
-    setRemoveAvatar(true);
-    setPreview(DEFAULT_AVATAR);
-    setSuccessMsg('');
+    setFile(selected);
     setError('');
   };
-
-  const handleCancel = () => nav(-1);
 
   const handleSubmit = async e => {
     e.preventDefault();
     setError('');
-    setSuccessMsg('');
-    if (!form.name.trim()) {
-      setError('Name is required.');
-      return;
-    }
-
     setLoading(true);
+
     try {
       const fd = new FormData();
-      fd.append('name', form.name.trim());
-      fd.append('bio', form.bio || '');
-      if (avatarFile) {
-        fd.append('avatar', avatarFile);
-      } else if (removeAvatar) {
-        fd.append('removeAvatar', 'true');
-      }
+      fd.append('caption', caption);
+      if (file) fd.append('image', file);
 
-      await API.put(`/users/${id}`, fd);
+      await API.put(`/posts/${post._id || post.id}`, fd);
 
-      // re-fetch updated user from server to get canonical data
-      if (user && (String(user.id) === String(id) || String(user._id) === String(id))) {
-        try {
-          const fresh = await API.get(`/users/${id}`);
-          // update global user
-          updateUser(fresh.data);
-        } catch (err) {
-          // ignore fetch error but continue navigation
-        }
-      }
-
-      setSuccessMsg('Profile updated successfully.');
-      setTimeout(() => {
-        nav(`/profile/${id}`);
-        // notify screen: broadcast user updated
-        try {
-          window.dispatchEvent(new CustomEvent('user:updated', { detail: { id } }));
-        } catch (e) {}
-      }, 600);
+      onSaved(); // Notify parent PostCard to refresh
     } catch (err) {
-      console.error('Update failed', err);
-      setError(err.response?.data?.message || 'Failed to update profile. Try again.');
+      setError(err.response?.data?.message || 'Failed to update post');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="max-w-2xl mx-auto mt-10 p-6 bg-white dark:bg-[#07142a] rounded-xl shadow-card border border-neutral-100 dark:border-neutral-800">
-      <header className="mb-6">
-        <h2 className="text-2xl font-semibold text-neutral-900 dark:text-neutral-100">Edit profile</h2>
-        <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">Update your display name, bio and avatar.</p>
-      </header>
+    <div className="p-4 bg-white dark:bg-[#07142a] rounded-xl border border-neutral-200 dark:border-neutral-800 mb-3">
+      <form onSubmit={handleSubmit} className="space-y-3">
+        <textarea
+          value={caption}
+          onChange={e => setCaption(e.target.value)}
+          rows={3}
+          className="w-full px-3 py-2 border border-neutral-300 dark:border-neutral-700 rounded-lg bg-neutral-50 dark:bg-[#07142a] text-neutral-900 dark:text-neutral-100 resize-none"
+          placeholder="Edit your caption..."
+        />
 
-      <form onSubmit={handleSubmit} className="space-y-5" aria-describedby="form-status">
-        <div className="flex flex-col sm:flex-row items-center gap-4">
-          <div className="w-32 h-32 rounded-full overflow-hidden bg-neutral-100 dark:bg-neutral-900 flex items-center justify-center border-2 border-neutral-100 dark:border-neutral-800">
-            <img src={preview || DEFAULT_AVATAR} alt="avatar preview" className="w-full h-full object-cover" />
-          </div>
+        <input
+          type="file"
+          accept="image/*"
+          onChange={handleFileChange}
+          className="w-full text-neutral-900 dark:text-neutral-100"
+        />
 
-          <div className="flex-1 w-full">
-            <label htmlFor="avatar" className="block text-sm font-medium text-neutral-700 dark:text-neutral-200">Avatar</label>
-            <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-2">PNG, JPG or GIF. Max 5MB.</p>
+        {preview && (
+          <img
+            src={preview}
+            alt="preview"
+            className="w-full h-auto rounded-lg mt-2 object-cover"
+          />
+        )}
 
-            <div className="flex flex-wrap gap-2 items-center">
-              <input
-                id="avatar"
-                name="avatar"
-                type="file"
-                accept="image/*"
-                onChange={handleFileChange}
-                className="text-sm text-neutral-700 dark:text-neutral-200 file:mr-4 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-sm file:bg-primary-600 file:text-white cursor-pointer"
-                aria-label="Upload avatar"
-              />
+        {error && <p className="text-red-500 text-sm">{error}</p>}
 
-              <button type="button" onClick={handleRemoveAvatar} className="px-3 py-2 rounded-md border border-neutral-200 dark:border-neutral-700 text-sm text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-[#052033]">
-                Remove avatar
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div>
-          <label htmlFor="name" className="block text-sm font-medium text-neutral-700 dark:text-neutral-200">Name</label>
-          <input id="name" name="name" value={form.name} onChange={handleChange} placeholder="Your name" required className="mt-1 w-full px-4 py-2 border border-neutral-200 dark:border-neutral-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-300 bg-neutral-50 dark:bg-[#07142a] text-neutral-900 dark:text-neutral-100" />
-        </div>
-
-        <div>
-          <label htmlFor="bio" className="block text-sm font-medium text-neutral-700 dark:text-neutral-200">Bio</label>
-          <textarea id="bio" name="bio" value={form.bio} onChange={handleChange} placeholder="A short bio about yourself" rows={4} className="mt-1 w-full px-4 py-2 border border-neutral-200 dark:border-neutral-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-300 bg-neutral-50 dark:bg-[#07142a] text-neutral-900 dark:text-neutral-100 resize-none" />
-        </div>
-
-        <div className="flex gap-3">
-          <button type="submit" disabled={loading} className="flex-1 inline-flex items-center justify-center px-4 py-2 rounded-lg text-white bg-primary-600 hover:bg-primary-700 disabled:opacity-60 disabled:cursor-not-allowed">
-            {loading ? 'Saving...' : 'Save changes'}
+        <div className="flex gap-2 mt-2">
+          <button
+            type="submit"
+            disabled={loading}
+            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-60"
+          >
+            {loading ? 'Saving...' : 'Save'}
           </button>
-
-          <button type="button" onClick={handleCancel} className="px-4 py-2 rounded-lg border border-neutral-200 dark:border-neutral-700 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-[#052033]">Cancel</button>
-        </div>
-
-        <div id="form-status" aria-live="polite" className="min-h-[1.25rem]">
-          {error && <p className="text-sm text-red-500">{error}</p>}
-          {successMsg && <p className="text-sm text-green-500">{successMsg}</p>}
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 border border-neutral-300 dark:border-neutral-700 rounded-lg hover:bg-neutral-50 dark:hover:bg-[#052033] text-neutral-900 dark:text-neutral-100"
+          >
+            Cancel
+          </button>
         </div>
       </form>
     </div>

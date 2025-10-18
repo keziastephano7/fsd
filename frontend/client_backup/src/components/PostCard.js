@@ -13,6 +13,8 @@ export default function PostCard({ post, onUpdate }) {
   const [showComments, setShowComments] = useState(false);
   const [newComment, setNewComment] = useState(null);
   const [editing, setEditing] = useState(false);
+  const [commentsCount, setCommentsCount] = useState(0);
+
 
   const { user } = useContext(AuthContext);
   const currentUserId = user?.id || user?._id || null;
@@ -25,6 +27,19 @@ export default function PostCard({ post, onUpdate }) {
     }
     setLikes(Array.isArray(post.likes) ? post.likes.length : post.likes || 0);
   }, [post, currentUserId]);
+  
+  useEffect(() => {
+    const loadCommentsCount = async () => {
+      try {
+        const res = await API.get(`/posts/${post._id || post.id}/comments`);
+        setCommentsCount(res.data.length || 0);
+      } catch (err) {
+        console.error('Failed to load comments count', err);
+      }
+    };
+
+    loadCommentsCount();
+  }, [post._id, post.id]);
 
   const toggleLike = async () => {
     try {
@@ -91,24 +106,65 @@ export default function PostCard({ post, onUpdate }) {
       <p className="text-neutral-800 dark:text-neutral-100 mb-3">{post.caption || post.content}</p>
 
       <div className="flex flex-wrap items-center gap-4 text-sm mb-2">
+        {/* Like button */}
+        <button onClick={toggleLike} className="flex items-center gap-1 font-medium transition">
+          <svg
+            className={`w-5 h-5 ${liked ? 'text-black' : 'text-gray-400'} dark:${liked ? 'text-white' : 'text-gray-300'}`}
+            aria-hidden="true"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              fillRule="evenodd"
+              d="M15.03 9.684h3.965c.322 0 .64.08.925.232.286.153.532.374.717.645a2.109 2.109 0 0 1 .242 1.883l-2.36 7.201c-.288.814-.48 1.355-1.884 1.355-2.072 0-4.276-.677-6.157-1.256-.472-.145-.924-.284-1.348-.404h-.115V9.478a25.485 25.485 0 0 0 4.238-5.514 1.8 1.8 0 0 1 .901-.83 1.74 1.74 0 0 1 1.21-.048c.396.13.736.397.96.757.225.36.32.788.269 1.211l-1.562 4.63ZM4.177 10H7v8a2 2 0 1 1-4 0v-6.823C3 10.527 3.527 10 4.176 10Z"
+              clipRule="evenodd"
+            />
+          </svg>
+          <span>({likes})</span>
+        </button>
+
+
+        {/* Comment button */}
         <button
-          onClick={toggleLike}
-          className={`font-medium transition ${liked ? 'text-red-500' : 'text-neutral-800 dark:text-neutral-100 hover:text-primary'}`}
+          onClick={() => {
+            setShowComments(prev => !prev);
+            if (!showComments) setEditing(false); // hide edit when opening comments
+          }}
+          className="flex items-center gap-1 text-neutral-800 dark:text-neutral-100 hover:text-primary"
         >
-          {liked ? '❤️ Unlike' : '🤍 Like'} ({likes})
+          <img src="/comment.svg" alt="Comments" className="w-5 h-5" />
+          <span>{showComments ? 'Hide Comments' : `Comments (${commentsCount})`}</span>
         </button>
 
-        <button onClick={() => setShowComments(s => !s)} className="text-neutral-800 dark:text-neutral-100 hover:text-primary">
-          {showComments ? 'Hide Comments' : '💬 Comments'}
-        </button>
 
+        {/* Edit/Delete buttons (for author) */}
         {isAuthor && (
           <>
-            <button onClick={() => setEditing(true)} className="text-neutral-600 dark:text-neutral-300 hover:text-accent">✏️ Edit</button>
-            <button onClick={deletePost} className="text-red-500 hover:text-red-600">🗑️ Delete</button>
+            <button
+              onClick={() => {
+                setEditing(true);
+                setShowComments(false); // hide comments when opening edit
+              }}
+              className="flex items-center gap-1 text-neutral-600 dark:text-neutral-300 hover:text-accent"
+            >
+              <img src="/edit.svg" alt="Edit" className="w-5 h-5" />
+              <span>Edit</span>
+            </button>
+            <button
+              onClick={deletePost}
+              className="flex items-center gap-1 text-red-500 hover:text-red-600"
+            >
+              <img src="/delete.svg" alt="Delete" className="w-5 h-5" />
+              <span>Delete</span>
+            </button>
           </>
         )}
       </div>
+
+
+
+
 
       {editing && (
         <EditPost
@@ -124,7 +180,13 @@ export default function PostCard({ post, onUpdate }) {
       {showComments && (
         <div className="border-t border-neutral-100 dark:border-neutral-800 mt-3 pt-3 space-y-2">
           <CommentList key={newComment?._id || post._id} postId={post._id || post.id} />
-          <CommentForm postId={post._id || post.id} onAdded={(c) => setNewComment(c)} />
+          <CommentForm
+            postId={post._id || post.id}
+            onAdded={(c) => {
+              setNewComment(c);
+              setCommentsCount(prev => prev + 1); // increment count
+            }}
+          />
         </div>
       )}
     </div>
