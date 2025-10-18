@@ -22,9 +22,7 @@ export default function Login({ onAuth }) {
       const data = err.response?.data;
       if (data?.errors) {
         const map = {};
-        data.errors.forEach(x => {
-          map[x.param] = x.msg;
-        });
+        data.errors.forEach(x => { map[x.param] = x.msg; });
         setFieldErrors(map);
       } else {
         setError(data?.message || 'Login failed');
@@ -33,16 +31,41 @@ export default function Login({ onAuth }) {
   };
 
   return (
-    <div className="card">
-      <h2>Login</h2>
-      <form onSubmit={handleSubmit}>
-        <input name="email" placeholder="Email" value={form.email} onChange={handleChange} type="email" required />
-        {fieldErrors.email && <div className="error">{fieldErrors.email}</div>}
-        <input name="password" placeholder="Password" value={form.password} onChange={handleChange} type="password" required />
-        {fieldErrors.password && <div className="error">{fieldErrors.password}</div>}
-        <button type="submit">Login</button>
+    <div className="max-w-md mx-auto mt-20 p-6 bg-white rounded-xl shadow-md border border-gray-200">
+      <h2 className="text-2xl font-semibold text-center mb-6">Login</h2>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <input
+            name="email"
+            type="email"
+            placeholder="Email"
+            value={form.email}
+            onChange={handleChange}
+            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+            required
+          />
+          {fieldErrors.email && <p className="text-red-500 text-sm mt-1">{fieldErrors.email}</p>}
+        </div>
+        <div>
+          <input
+            name="password"
+            type="password"
+            placeholder="Password"
+            value={form.password}
+            onChange={handleChange}
+            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+            required
+          />
+          {fieldErrors.password && <p className="text-red-500 text-sm mt-1">{fieldErrors.password}</p>}
+        </div>
+        <button
+          type="submit"
+          className="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 transition"
+        >
+          Login
+        </button>
       </form>
-      {error && <p className="error">{error}</p>}
+      {error && <p className="text-red-500 text-center mt-4">{error}</p>}
     </div>
   );
 }

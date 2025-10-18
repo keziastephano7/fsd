@@ -21,11 +21,8 @@ export default function Signup({ onAuth }) {
     } catch (err) {
       const data = err.response?.data;
       if (data?.errors) {
-        // map array to object { field: message }
         const map = {};
-        data.errors.forEach(x => {
-          map[x.param] = x.msg;
-        });
+        data.errors.forEach(x => { map[x.param] = x.msg; });
         setFieldErrors(map);
       } else {
         setError(data?.message || 'Signup failed');
@@ -34,18 +31,52 @@ export default function Signup({ onAuth }) {
   };
 
   return (
-    <div className="card">
-      <h2>Signup</h2>
-      <form onSubmit={handleSubmit}>
-        <input name="name" placeholder="Name" value={form.name} onChange={handleChange} required />
-        {fieldErrors.name && <div className="error">{fieldErrors.name}</div>}
-        <input name="email" placeholder="Email" value={form.email} onChange={handleChange} type="email" required />
-        {fieldErrors.email && <div className="error">{fieldErrors.email}</div>}
-        <input name="password" placeholder="Password" value={form.password} onChange={handleChange} type="password" required />
-        {fieldErrors.password && <div className="error">{fieldErrors.password}</div>}
-        <button type="submit">Signup</button>
+    <div className="max-w-md mx-auto mt-20 p-6 bg-white rounded-xl shadow-md border border-gray-200">
+      <h2 className="text-2xl font-semibold text-center mb-6">Signup</h2>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <input
+            name="name"
+            placeholder="Name"
+            value={form.name}
+            onChange={handleChange}
+            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+            required
+          />
+          {fieldErrors.name && <p className="text-red-500 text-sm mt-1">{fieldErrors.name}</p>}
+        </div>
+        <div>
+          <input
+            name="email"
+            type="email"
+            placeholder="Email"
+            value={form.email}
+            onChange={handleChange}
+            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+            required
+          />
+          {fieldErrors.email && <p className="text-red-500 text-sm mt-1">{fieldErrors.email}</p>}
+        </div>
+        <div>
+          <input
+            name="password"
+            type="password"
+            placeholder="Password"
+            value={form.password}
+            onChange={handleChange}
+            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+            required
+          />
+          {fieldErrors.password && <p className="text-red-500 text-sm mt-1">{fieldErrors.password}</p>}
+        </div>
+        <button
+          type="submit"
+          className="w-full bg-green-500 text-white py-2 rounded-lg hover:bg-green-600 transition"
+        >
+          Signup
+        </button>
       </form>
-      {error && <p className="error">{error}</p>}
+      {error && <p className="text-red-500 text-center mt-4">{error}</p>}
     </div>
   );
 }
