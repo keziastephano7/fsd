@@ -29,8 +29,8 @@ export default function Navbar() {
         <div className="h-14 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Link to="/" className="flex items-center gap-2">
-              <div className="w-9 h-9 rounded-lg bg-primary-600 flex items-center justify-center text-white font-bold">SM</div>
-              <span className="font-semibold text-lg hidden sm:inline">MySocial</span>
+              <img src="/moon.svg" alt="Moon" className="w-9 h-9" />
+              <span className="font-semibold text-lg hidden sm:inline">Luna</span>
             </Link>
           </div>
 
