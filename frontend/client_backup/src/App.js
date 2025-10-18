@@ -30,21 +30,31 @@ function App() {
 
   return (
     <div>
-      <nav className="topbar">
-        <Link to="/">Feed</Link>
-        {user ? (
-          <>
-            <Link to={`/profile/${user.id}`}>Profile</Link>
-            <button onClick={logout}>Logout</button>
-            <span className="muted">Hello, {user.name}</span>
-          </>
-        ) : (
-          <>
-            <Link to="/login">Login</Link>
-            <Link to="/signup">Signup</Link>
-          </>
-        )}
+      <nav className="bg-white shadow flex items-center justify-between px-4 py-2 sticky top-0 z-10">
+        <div className="flex gap-4 items-center">
+          <Link to="/" className="font-semibold text-blue-600 text-lg">MySocial</Link>
+          {user && <Link to={`/profile/${user.id}`} className="text-gray-700 hover:text-blue-600">Profile</Link>}
+        </div>
+        <div className="flex gap-3 items-center">
+          {user ? (
+            <>
+              <span className="text-sm text-gray-600">Hi, {user.name}</span>
+              <button
+                onClick={logout}
+                className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm"
+              >
+                Logout
+              </button>
+            </>
+          ) : (
+            <>
+              <Link to="/login" className="text-gray-700 hover:text-blue-600">Login</Link>
+              <Link to="/signup" className="text-gray-700 hover:text-blue-600">Signup</Link>
+            </>
+          )}
+        </div>
       </nav>
+
 
       <main className="container">
         <Routes>
