@@ -3,7 +3,6 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const User = require('../models/User');
 
-// newly added lines
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs').promises;
@@ -27,7 +26,33 @@ const upload = multer({
     cb(ok ? null : new Error('Only JPG/PNG images allowed'), ok);
   }
 });
-// newly added lines end here
+
+// ⭐ IMPORTANT: /search MUST come BEFORE /:id
+// Search users by name or email
+router.get('/search', async (req, res) => {
+  try {
+    const { q } = req.query;
+    
+    if (!q || q.trim().length === 0) {
+      return res.json([]);
+    }
+
+    // Search for users matching the query
+    const users = await User.find({
+      $or: [
+        { name: { $regex: q, $options: 'i' } },
+        { email: { $regex: q, $options: 'i' } }
+      ]
+    })
+    .select('name email avatarUrl _id')
+    .limit(10);
+
+    res.json(users);
+  } catch (err) {
+    console.error('User search error:', err);
+    res.status(500).json({ message: 'Search failed', error: err.message });
+  }
+});
 
 // GET /api/users/:id - get profile
 router.get('/:id', async (req, res) => {
@@ -74,6 +99,5 @@ router.put('/:id', auth, upload.single('avatar'), async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 });
-
 
 module.exports = router;

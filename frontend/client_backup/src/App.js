@@ -10,6 +10,7 @@ import CreatePostPage from './pages/CreatePost';
 import './input.css';
 import Navbar from './components/Navbar';
 import { AuthContext } from './AuthContext';
+import TagPage from './pages/TagPage';
 
 function App() {
   const { user } = useContext(AuthContext);
@@ -31,6 +32,7 @@ function App() {
           <Route path="/profile/:id" element={<Profile />} />
           <Route path="/profile/:id/edit" element={<EditProfile />} />
           <Route path="/create" element={<CreatePostPage />} />
+          <Route path="/tag/:tag" element={<TagPage />} />
         </Routes>
       </main>
     </div>

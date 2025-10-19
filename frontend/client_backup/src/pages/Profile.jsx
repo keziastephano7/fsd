@@ -1,148 +1,419 @@
-import React, { useEffect, useState, useRef, useCallback, useContext } from 'react';
+import React, { useEffect, useState, useContext, useRef } from 'react';
 import API from '../api';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { AuthContext } from '../AuthContext';
 import { buildUrl } from '../utils/url';
 
 export default function Profile() {
-  const { user } = useContext(AuthContext);
   const { id } = useParams();
+  const { user } = useContext(AuthContext);
   const navigate = useNavigate();
 
   const [profile, setProfile] = useState(null);
   const [posts, setPosts] = useState([]);
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [loadingPosts, setLoadingPosts] = useState(true);
+  const [activeTab, setActiveTab] = useState('posts'); // 'posts' or 'thoughts'
   const mountedRef = useRef(true);
-
-  const loadProfile = useCallback(async (signal) => {
-    setLoadingProfile(true);
-    try {
-      const res = await API.get(`/users/${id}`, { signal });
-      if (!mountedRef.current) return;
-      setProfile(res.data);
-    } catch (err) {
-      if (err.name !== 'AbortError') console.error('Failed to load profile:', err);
-    } finally {
-      if (mountedRef.current) setLoadingProfile(false);
-    }
-  }, [id]);
-
-  const loadPosts = useCallback(async (signal) => {
-    setLoadingPosts(true);
-    try {
-      const res = await API.get(`/posts?author=${id}`, { signal });
-      if (!mountedRef.current) return;
-      setPosts(Array.isArray(res.data) ? res.data : []);
-    } catch (err) {
-      if (err.name !== 'AbortError') console.error('Failed to load posts:', err);
-    } finally {
-      if (mountedRef.current) setLoadingPosts(false);
-    }
-  }, [id]);
 
   useEffect(() => {
     mountedRef.current = true;
     const controller = new AbortController();
-    loadProfile(controller.signal);
-    loadPosts(controller.signal);
-    return () => { mountedRef.current = false; controller.abort(); };
-  }, [loadProfile, loadPosts]);
+
+    const loadProfile = async () => {
+      setLoadingProfile(true);
+      try {
+        const res = await API.get(`/users/${id}`, { signal: controller.signal });
+        if (!mountedRef.current) return;
+        setProfile(res.data);
+      } catch (err) {
+        console.error('Failed to load profile', err);
+      } finally {
+        if (mountedRef.current) setLoadingProfile(false);
+      }
+    };
+
+    const loadPosts = async () => {
+      setLoadingPosts(true);
+      try {
+        const res = await API.get(`/posts?author=${id}`, { signal: controller.signal });
+        if (!mountedRef.current) return;
+        setPosts(Array.isArray(res.data) ? res.data : []);
+      } catch (err) {
+        console.error('Failed to load posts', err);
+      } finally {
+        if (mountedRef.current) setLoadingPosts(false);
+      }
+    };
+
+    loadProfile();
+    loadPosts();
+
+    return () => {
+      mountedRef.current = false;
+      controller.abort();
+    };
+  }, [id]);
 
   useEffect(() => {
-    const handler = (e) => {
+    const onPostCreated = (e) => {
       const newPost = e.detail;
       if (!newPost) return;
       const authorId = newPost.author?._id || newPost.author || newPost.authorId;
       if (String(authorId) === String(id)) {
-        setPosts(prev => [newPost, ...prev]);
+        setPosts(prev => {
+          if (prev.some(p => (p._id || p.id) === (newPost._id || newPost.id))) return prev;
+          return [newPost, ...prev];
+        });
       }
     };
-    window.addEventListener('post:created', handler);
-    return () => window.removeEventListener('post:created', handler);
+    window.addEventListener('post:created', onPostCreated);
+    return () => window.removeEventListener('post:created', onPostCreated);
   }, [id]);
 
   useEffect(() => {
     const onUserUpdated = (e) => {
-      const detail = e.detail || {};
-      if (detail.id) {
-        if (String(detail.id) === String(id)) {
-          const controller = new AbortController();
-          loadProfile(controller.signal);
-        }
-      } else {
-        if (user && String(user.id || user._id) === String(id)) {
-          const controller = new AbortController();
-          loadProfile(controller.signal);
-        }
+      const updated = e.detail || {};
+      const updatedId = updated.id || updated._id || null;
+      if (!updatedId) return;
+      if (String(updatedId) === String(id)) {
+        API.get(`/users/${id}`).then(res => setProfile(res.data)).catch(() => {});
       }
     };
     window.addEventListener('user:updated', onUserUpdated);
     return () => window.removeEventListener('user:updated', onUserUpdated);
-  }, [id, loadProfile, user]);
+  }, [id]);
 
-  const isOwner = user && profile && String(user._id || user.id) === String(profile._id || profile.id);
+  const isOwner = !!user && (String(user.id || user._id) === String(id));
+  const handleEdit = () => navigate(`/profile/${id}/edit`);
 
-
-
-  if (loadingProfile) return <p className="text-center mt-20 text-neutral-600 dark:text-neutral-400">Loading...</p>;
-  if (!profile) return <p className="text-center mt-20 text-neutral-600 dark:text-neutral-400">Profile not found.</p>;
+  const thoughts = posts.filter(p => !p.imageUrl);
+  const mediaPosts = posts.filter(p => p.imageUrl);
 
   return (
-    <div className="max-w-5xl mx-auto mt-10 px-4 flex flex-col lg:flex-row gap-6">
-      <div className="lg:w-1/3 flex flex-col items-center bg-white dark:bg-[#07142a] rounded-xl shadow-soft border border-neutral-100 dark:border-neutral-800 p-6">
-        {profile.avatarUrl ? (
-          <img
-            src={buildUrl(profile.avatarUrl)}
-            alt="avatar"
-            className="w-32 h-32 rounded-full object-cover mb-4 border-2 border-primary-600"
-            onError={(e) => { e.currentTarget.style.display = 'none'; }}
-          />
-        ) : (
-          <div className="w-32 h-32 bg-neutral-100 dark:bg-neutral-900 rounded-full mb-4 flex items-center justify-center text-xl text-neutral-500">
-            {profile.name?.charAt(0) ?? '?'}
-          </div>
-        )}
-
-        <h2 className="text-2xl font-semibold text-neutral-900 dark:text-neutral-100 mb-2">{profile.name}</h2>
-        {profile.bio && <p className="text-neutral-600 dark:text-neutral-400 text-center mb-4">{profile.bio}</p>}
-
-        {!loadingProfile && (
-          <div className="flex justify-center mt-4 w-full">
-            {isOwner && (
-              <button
-                onClick={() => navigate(`/profile/${id}/edit`)}
-                className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition"
-              >
-                Edit Profile
-              </button>
-            )}
+    <div className="min-h-screen bg-gradient-to-br from-neutral-50 via-purple-50/20 to-blue-50/20 dark:from-[#050b14] dark:via-[#0a1628] dark:to-[#0d1b2a] pb-12">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
+        
+        {/* Profile Header Card - Premium Design */}
+        <div className="relative mb-8 animate-fadeIn">
+          {/* Cover Image / Gradient Background */}
+          <div className="h-48 sm:h-56 rounded-t-3xl bg-gradient-to-r from-blue-500 via-purple-500 to-purple-600 relative overflow-hidden shadow-2xl">
+            {/* Animated gradient overlay */}
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer"></div>
+            {/* Decorative circles */}
+            <div className="absolute top-10 right-10 w-32 h-32 rounded-full bg-white/10 blur-3xl"></div>
+            <div className="absolute bottom-5 left-20 w-40 h-40 rounded-full bg-purple-300/20 blur-3xl"></div>
           </div>
 
-        )}
-
-
-      </div>
-
-      <div className="flex-1 flex flex-col gap-4">
-        <h3 className="text-xl font-semibold text-neutral-900 dark:text-neutral-100">Posts</h3>
-
-        {posts.length === 0 ? (
-          <p className="text-neutral-600 dark:text-neutral-400 text-center mt-4">No posts yet.</p>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            {posts.map((pt) => (
-              <div key={pt._id || pt.id} className="bg-white dark:bg-[#07142a] rounded-xl shadow-soft border border-neutral-100 dark:border-neutral-800 p-4 hover:shadow-md transition">
-                {pt.imageUrl && (
-                  <Link to={`/post/${pt._id || pt.id}`}>
-                    <img src={buildUrl(pt.imageUrl)} alt={pt.caption ? pt.caption.slice(0, 80) : 'Post image'} className="w-full h-44 object-cover rounded-md mb-3" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-                  </Link>
+          {/* Main Profile Card */}
+          <div className="bg-white dark:bg-[#0a1628] rounded-b-3xl shadow-2xl border-x border-b border-purple-100/50 dark:border-purple-900/30 px-6 sm:px-8 pb-8">
+            
+            {/* Avatar - Overlapping the cover */}
+            <div className="flex flex-col sm:flex-row items-center sm:items-end gap-6 -mt-16 sm:-mt-20">
+              <div className="relative group">
+                <div className="w-32 h-32 sm:w-36 sm:h-36 rounded-full overflow-hidden border-4 border-white dark:border-[#0a1628] shadow-2xl ring-4 ring-purple-500/30 transition-all duration-300 group-hover:ring-purple-500/60 group-hover:scale-105">
+                  {loadingProfile ? (
+                    <div className="w-full h-full bg-gradient-to-br from-blue-400 to-purple-400 animate-pulse"></div>
+                  ) : profile?.avatarUrl ? (
+                    <img
+                      src={buildUrl(profile.avatarUrl)}
+                      alt={`${profile.name || 'User'} avatar`}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-blue-500 via-purple-500 to-purple-600 flex items-center justify-center text-white font-bold text-5xl">
+                      {profile?.name?.charAt(0).toUpperCase() ?? 'U'}
+                    </div>
+                  )}
+                </div>
+                {/* Online indicator (optional) */}
+                {isOwner && (
+                  <div className="absolute bottom-2 right-2 w-6 h-6 bg-green-500 rounded-full border-4 border-white dark:border-[#0a1628] shadow-lg"></div>
                 )}
-                <p className="text-neutral-700 dark:text-neutral-100">{pt.caption}</p>
               </div>
-            ))}
+
+              {/* Name and Bio */}
+              <div className="flex-1 text-center sm:text-left mb-4 sm:mb-0">
+                <h1 className="text-3xl font-bold text-neutral-900 dark:text-white mb-2 tracking-tight">
+                  {loadingProfile ? (
+                    <span className="inline-block w-48 h-8 bg-neutral-200 dark:bg-neutral-800 rounded-lg animate-pulse"></span>
+                  ) : (
+                    profile?.name || 'Unnamed User'
+                  )}
+                </h1>
+                <p className="text-neutral-600 dark:text-neutral-400 max-w-md leading-relaxed">
+                  {loadingProfile ? (
+                    <span className="inline-block w-64 h-5 bg-neutral-200 dark:bg-neutral-800 rounded-lg animate-pulse"></span>
+                  ) : (
+                    profile?.bio || '✨ No bio yet — the mystery continues...'
+                  )}
+                </p>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 sm:mb-4">
+                {isOwner ? (
+                  <button
+                    onClick={handleEdit}
+                    className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 via-purple-600 to-purple-700 text-white font-semibold shadow-lg hover:shadow-purple-500/50 transition-all duration-300 hover:scale-105 active:scale-95 flex items-center gap-2 group"
+                  >
+                    <svg className="w-4 h-4 transition-transform group-hover:rotate-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    </svg>
+                    Edit Profile
+                  </button>
+                ) : (
+                  <>
+                    <button className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold shadow-lg hover:shadow-purple-500/50 transition-all duration-300 hover:scale-105 active:scale-95 flex items-center gap-2">
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M8 9a3 3 0 100-6 3 3 0 000 6zM8 11a6 6 0 016 6H2a6 6 0 016-6zM16 7a1 1 0 10-2 0v1h-1a1 1 0 100 2h1v1a1 1 0 102 0v-1h1a1 1 0 100-2h-1V7z" />
+                      </svg>
+                      Follow
+                    </button>
+                    <Link
+                      to={`/messages/${profile?._id || profile?.id || id}`}
+                      className="px-6 py-2.5 rounded-xl bg-white dark:bg-[#1a1f3a] text-purple-600 dark:text-purple-400 font-semibold border-2 border-purple-300 dark:border-purple-700 hover:bg-purple-50 dark:hover:bg-purple-950/30 transition-all duration-300 hover:scale-105 active:scale-95 flex items-center gap-2 shadow-md"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                      </svg>
+                      Message
+                    </Link>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Stats Section */}
+            <div className="mt-8 pt-6 border-t border-neutral-200 dark:border-neutral-800">
+              <div className="grid grid-cols-3 gap-4 max-w-md mx-auto sm:mx-0">
+                {/* Posts Count */}
+                <div className="text-center sm:text-left p-4 rounded-xl bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-950/20 dark:to-purple-950/20 border border-purple-200/50 dark:border-purple-800/30 transition-all duration-300 hover:scale-105 hover:shadow-lg">
+                  <div className="font-bold text-2xl bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                    {loadingPosts ? '...' : posts.length}
+                  </div>
+                  <div className="text-xs font-medium text-neutral-600 dark:text-neutral-400 mt-1">Posts</div>
+                </div>
+
+                {/* Followers Count */}
+                <div className="text-center sm:text-left p-4 rounded-xl bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950/20 dark:to-pink-950/20 border border-purple-200/50 dark:border-purple-800/30 transition-all duration-300 hover:scale-105 hover:shadow-lg">
+                  <div className="font-bold text-2xl bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                    {loadingProfile ? '...' : (profile?.followers?.length ?? 0)}
+                  </div>
+                  <div className="text-xs font-medium text-neutral-600 dark:text-neutral-400 mt-1">Followers</div>
+                </div>
+
+                {/* Thoughts Count */}
+                <div className="text-center sm:text-left p-4 rounded-xl bg-gradient-to-br from-pink-50 to-purple-50 dark:from-pink-950/20 dark:to-purple-950/20 border border-purple-200/50 dark:border-purple-800/30 transition-all duration-300 hover:scale-105 hover:shadow-lg">
+                  <div className="font-bold text-2xl bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">
+                    {loadingPosts ? '...' : thoughts.length}
+                  </div>
+                  <div className="text-xs font-medium text-neutral-600 dark:text-neutral-400 mt-1">Thoughts</div>
+                </div>
+              </div>
+            </div>
           </div>
-        )}
+        </div>
+
+        {/* Tab Navigation - Modern Style */}
+        <div className="mb-6 animate-fadeIn" style={{ animationDelay: '0.1s' }}>
+          <div className="bg-white dark:bg-[#0a1628] rounded-2xl shadow-xl border border-purple-100/50 dark:border-purple-900/30 p-2 inline-flex gap-2">
+            <button
+              onClick={() => setActiveTab('posts')}
+              className={`px-6 py-2.5 rounded-xl font-semibold transition-all duration-300 flex items-center gap-2 ${
+                activeTab === 'posts'
+                  ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg scale-105'
+                  : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-900/50'
+              }`}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              Posts
+              <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+                activeTab === 'posts' 
+                  ? 'bg-white/20' 
+                  : 'bg-neutral-200 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300'
+              }`}>
+                {mediaPosts.length}
+              </span>
+            </button>
+            
+            <button
+              onClick={() => setActiveTab('thoughts')}
+              className={`px-6 py-2.5 rounded-xl font-semibold transition-all duration-300 flex items-center gap-2 ${
+                activeTab === 'thoughts'
+                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg scale-105'
+                  : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-900/50'
+              }`}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Thoughts
+              <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+                activeTab === 'thoughts' 
+                  ? 'bg-white/20' 
+                  : 'bg-neutral-200 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300'
+              }`}>
+                {thoughts.length}
+              </span>
+            </button>
+          </div>
+        </div>
+
+        {/* Content Area */}
+        <div className="animate-fadeInUp" style={{ animationDelay: '0.2s' }}>
+          {/* POSTS TAB */}
+          {activeTab === 'posts' && (
+            <>
+              {loadingPosts ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                  {[1, 2, 3, 4, 5, 6].map(i => (
+                    <div
+                      key={i}
+                      className="aspect-square rounded-2xl bg-gradient-to-br from-blue-200 to-purple-200 dark:from-blue-900 dark:to-purple-900 animate-pulse"
+                      style={{ animationDelay: `${i * 50}ms` }}
+                    ></div>
+                  ))}
+                </div>
+              ) : mediaPosts.length === 0 ? (
+                <div className="text-center py-16 px-6 bg-white dark:bg-[#0a1628] rounded-3xl border border-purple-100/50 dark:border-purple-900/30 shadow-xl">
+                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center mx-auto mb-6 shadow-2xl shadow-purple-500/30">
+                    <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-2xl font-bold text-neutral-900 dark:text-white mb-2">No posts yet</h3>
+                  <p className="text-neutral-600 dark:text-neutral-400 mb-6">
+                    {isOwner ? 'Share your first moment with images!' : 'No posts with images yet.'}
+                  </p>
+                  {isOwner && (
+                    <Link
+                      to="/"
+                      className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold shadow-lg hover:shadow-purple-500/50 transition-all duration-300 hover:scale-105 active:scale-95"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                      Create Post
+                    </Link>
+                  )}
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                  {mediaPosts.map((p, index) => (
+                    <Link
+                      key={p._id || p.id}
+                      to={`/post/${p._id || p.id}`}
+                      className="group relative aspect-square rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl hover:shadow-purple-500/30 transition-all duration-300 hover:scale-105 animate-fadeInUp border-2 border-transparent hover:border-purple-400/50"
+                      style={{ animationDelay: `${index * 50}ms` }}
+                    >
+                      {/* Image */}
+                      <img
+                        src={buildUrl(p.imageUrl)}
+                        alt={p.caption ? p.caption.slice(0, 80) : 'Post image'}
+                        className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                      />
+                      
+                      {/* Gradient overlay on hover */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                      
+                      {/* Caption on hover */}
+                      {p.caption && (
+                        <div className="absolute bottom-0 left-0 right-0 p-4 text-white transform translate-y-full group-hover:translate-y-0 transition-transform duration-300">
+                          <p className="text-sm font-medium line-clamp-2">{p.caption}</p>
+                        </div>
+                      )}
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+
+          {/* THOUGHTS TAB */}
+          {activeTab === 'thoughts' && (
+            <>
+              {loadingPosts ? (
+                <div className="space-y-4">
+                  {[1, 2, 3].map(i => (
+                    <div
+                      key={i}
+                      className="h-32 rounded-2xl bg-gradient-to-br from-blue-200 to-purple-200 dark:from-blue-900 dark:to-purple-900 animate-pulse"
+                      style={{ animationDelay: `${i * 100}ms` }}
+                    ></div>
+                  ))}
+                </div>
+              ) : thoughts.length === 0 ? (
+                <div className="text-center py-16 px-6 bg-white dark:bg-[#0a1628] rounded-3xl border border-purple-100/50 dark:border-purple-900/30 shadow-xl">
+                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center mx-auto mb-6 shadow-2xl shadow-purple-500/30">
+                    <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-2xl font-bold text-neutral-900 dark:text-white mb-2">No thoughts yet</h3>
+                  <p className="text-neutral-600 dark:text-neutral-400 mb-6">
+                    {isOwner ? 'Share your first thought!' : 'No thoughts shared yet.'}
+                  </p>
+                  {isOwner && (
+                    <Link
+                      to="/"
+                      className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold shadow-lg hover:shadow-purple-500/50 transition-all duration-300 hover:scale-105 active:scale-95"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                      Share Thought
+                    </Link>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {thoughts.map((t, index) => (
+                    <article
+                      key={t._id || t.id}
+                      className="bg-white dark:bg-[#0a1628] rounded-2xl shadow-lg border border-purple-100/50 dark:border-purple-900/30 p-5 hover:shadow-2xl hover:shadow-purple-500/20 transition-all duration-300 hover:scale-[1.02] animate-fadeInUp"
+                      style={{ animationDelay: `${index * 50}ms` }}
+                    >
+                      <div className="flex items-start gap-4">
+                        {/* Author Avatar */}
+                        <div className="shrink-0">
+                          {t.author?.avatarUrl ? (
+                            <img
+                              src={buildUrl(t.author.avatarUrl)}
+                              alt={t.author?.name || 'Author'}
+                              className="w-12 h-12 rounded-full object-cover ring-2 ring-purple-500/30"
+                            />
+                          ) : (
+                            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg ring-2 ring-purple-500/30">
+                              {String(t.author?.name || t.author || '?').charAt(0).toUpperCase()}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-semibold text-neutral-900 dark:text-white">
+                              {t.author?.name || t.author || 'User'}
+                            </span>
+                            <span className="text-xs text-neutral-500 dark:text-neutral-400">
+                              • {t.createdAt ? new Date(t.createdAt).toLocaleDateString() : ''}
+                            </span>
+                          </div>
+                          <p className="text-neutral-800 dark:text-neutral-200 leading-relaxed">
+                            {t.caption || t.content}
+                          </p>
+                        </div>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

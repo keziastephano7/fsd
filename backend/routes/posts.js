@@ -6,8 +6,9 @@ const auth = require('../middleware/auth');
 const Post = require('../models/Post');
 const User = require('../models/User');
 const fs = require('fs').promises;
+const { body, validationResult } = require('express-validator');
 
-// Multer setup - store in /uploads, limit size and accept images only
+// Multer setup
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     cb(null, 'uploads/');
@@ -28,26 +29,63 @@ const upload = multer({
 });
 
 // POST /api/posts - create post (protected)
-router.post('/', auth, upload.single('image'), async (req, res) => {
-  try {
-    const { caption } = req.body;
-    const imageUrl = req.file ? `/uploads/${req.file.filename}` : '';
-    const post = new Post({ author: req.userId, caption, imageUrl });
-    await post.save();
-    await post.populate('author', '-password');
-    res.json(post);
-  } catch (err) {
-    console.error('Error creating post:', err);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
+router.post(
+  '/',
+  auth,
+  upload.single('image'),
+  [
+    body('caption')
+      .optional()
+      .isLength({ max: 1000 })
+      .withMessage('Caption can be at most 1000 characters')
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
 
-// GET /api/posts - feed (optional ?author=userid)
+    try {
+      const { caption } = req.body;
+      const imageUrl = req.file ? `/uploads/${req.file.filename}` : '';
+      
+      // ⭐ Parse tags from request
+      let tags = [];
+      if (req.body.tags) {
+        try {
+          tags = JSON.parse(req.body.tags);
+        } catch (e) {
+          tags = [];
+        }
+      }
+      
+      const post = new Post({ 
+        author: req.userId, 
+        caption, 
+        imageUrl,
+        tags  // ⭐ ADD TAGS!
+      });
+      
+      await post.save();
+      await post.populate('author', '-password');
+      res.json(post);
+    } catch (err) {
+      console.error('Error creating post:', err);
+      res.status(500).json({ message: 'Server error' });
+    }
+  }
+);
+
+// GET /api/posts - feed (optional ?author=userid or ?tag=tagname)
 router.get('/', async (req, res) => {
   try {
     const filter = {};
     if (req.query.author) filter.author = req.query.author;
-    const posts = await Post.find(filter).populate('author', '-password').sort({ createdAt: -1 });
+    if (req.query.tag) filter.tags = { $in: [req.query.tag.toLowerCase()] };
+    
+    const posts = await Post.find(filter)
+      .populate('author', '-password')
+      .sort({ createdAt: -1 });
     res.json(posts);
   } catch (err) {
     console.error('Error fetching posts:', err);
@@ -67,17 +105,26 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// PUT /api/posts/:id - update caption or image (protected)
+// PUT /api/posts/:id - update caption, image, or tags (protected)
 router.put('/:id', auth, upload.single('image'), async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
     if (!post) return res.status(404).json({ message: 'Post not found' });
-    if (String(post.author) !== String(req.userId)) return res.status(403).json({ message: 'Forbidden' });
+    if (String(post.author) !== String(req.userId)) 
+      return res.status(403).json({ message: 'Forbidden' });
 
     if (req.body.caption !== undefined) post.caption = req.body.caption;
+    
+    // ⭐ Update tags if provided
+    if (req.body.tags) {
+      try {
+        post.tags = JSON.parse(req.body.tags);
+      } catch (e) {
+        // ignore
+      }
+    }
 
     if (req.file) {
-      // remove old image if exists (do not fail if unlink fails)
       if (post.imageUrl) {
         try {
           const oldPath = path.join(__dirname, '..', post.imageUrl.replace(/^\//, ''));
@@ -105,16 +152,16 @@ router.delete('/:id', auth, async (req, res) => {
     const post = await Post.findById(postId);
     if (!post) return res.status(404).json({ message: 'Post not found' });
 
-    if (String(post.author) !== String(req.userId)) return res.status(403).json({ message: 'Forbidden: only author can delete this post' });
+    if (String(post.author) !== String(req.userId)) 
+      return res.status(403).json({ message: 'Forbidden: only author can delete this post' });
 
-    // Remove image file if present (ignore file-not-found)
     if (post.imageUrl) {
       try {
         const relativePath = post.imageUrl.replace(/^\//, '');
         const imagePath = path.join(__dirname, '..', relativePath);
         await fs.unlink(imagePath).catch(() => {});
       } catch (err) {
-        // ignore image deletion errors
+        // ignore
       }
     }
 
@@ -147,36 +194,3 @@ router.post('/:id/like', auth, async (req, res) => {
 });
 
 module.exports = router;
-
-const { body, validationResult } = require('express-validator');
-
-// POST /api/posts - create post (protected)
-router.post(
-  '/',
-  auth,
-  upload.single('image'),
-  [
-    body('caption')
-      .optional()
-      .isLength({ max: 300 })
-      .withMessage('Caption can be at most 300 characters')
-  ],
-  async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
-    try {
-      const { caption } = req.body;
-      const imageUrl = req.file ? `/uploads/${req.file.filename}` : '';
-      const post = new Post({ author: req.userId, caption, imageUrl });
-      await post.save();
-      await post.populate('author', '-password');
-      res.json(post);
-    } catch (err) {
-      console.error('Error creating post:', err);
-      res.status(500).json({ message: 'Server error' });
-    }
-  }
-);
