@@ -9,11 +9,10 @@ import { AuthContext } from '../AuthContext';
 import { buildUrl } from '../utils/url';
 import TagChip from './TagChip';
 
-export default function PostCard({ post, onUpdate, disableMenu = false, isModal, showCommentsDefault = false  }) {
-  // const [showComments, setShowComments] = useState(showCommentsDefault);
+export default function PostCard({ post, onUpdate, disableMenu = false, isModal, showCommentsDefault = false }) {
+  const [showComments, setShowComments] = useState(showCommentsDefault);
   const [likes, setLikes] = useState(Array.isArray(post.likes) ? post.likes.length : post.likes || 0);
   const [liked, setLiked] = useState(false);
-  const [showComments, setShowComments] = useState(false);
   const [editing, setEditing] = useState(false);
   const [commentsCount, setCommentsCount] = useState(0);
   const [commentsVersion, setCommentsVersion] = useState(0);
@@ -86,40 +85,67 @@ export default function PostCard({ post, onUpdate, disableMenu = false, isModal,
   const avatar = post.author?.avatarUrl && buildUrl(post.author.avatarUrl);
   const authorLink = `/profile/${post.author?._id}`;
 
+  // Format time to dd/mm/yyyy and hh:mm am/pm
+  const formatTime = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    
+    // Format date as dd/mm/yyyy
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    
+    // Format time as hh:mm am/pm (local time without seconds)
+    const time = date.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    }).toLowerCase();
+    
+    return `${day}/${month}/${year} ${time}`;
+  };
+
   return (
     <>
       <motion.article
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0 }}
-        className={`bg-white dark:bg-[#191e33] rounded-xl shadow-lg overflow-hidden transition-all duration-250 w-full
-          ${isModal ? "max-w-lg mx-auto" : "max-w-sm mx-auto"}`}
+        className={`bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden transition-all duration-300 w-full
+          ${isModal ? "max-w-lg mx-auto" : "max-w-2xl mx-auto"} hover:shadow-xl`} // Enhanced shadow and hover
       >
-        {/* Header */}
-        <div className="flex items-center p-3 border-b border-neutral-200 dark:border-[#263054] relative">
-          <Link to={authorLink} className="flex items-center gap-2 flex-1 min-w-0">
+        {/* Header - Enhanced Design */}
+        <div className="flex items-center justify-between p-4 border-b border-gray-100">
+          <Link to={authorLink} className="flex items-center gap-3 flex-1 min-w-0 group">
             {avatar ? (
-              <img src={avatar} alt={`${post.author?.name || 'User'} avatar`} className="w-8 h-8 rounded-full object-cover ring-2 ring-purple-400/70" />
+              <img 
+                src={avatar} 
+                alt={`${post.author?.name || 'User'} avatar`} 
+                className="w-10 h-10 rounded-full object-cover ring-2 ring-gray-200 group-hover:ring-blue-300 transition-all duration-300" 
+              />
             ) : (
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center text-white font-bold text-sm select-none ring-2 ring-purple-400/70">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm select-none ring-2 ring-gray-200 group-hover:ring-blue-300 transition-all duration-300">
                 {post.author?.name?.charAt(0) || '?'}
               </div>
             )}
             <div className="min-w-0">
-              <p className="font-semibold text-neutral-900 dark:text-white text-xs truncate">{post.author?.name || 'User'}</p>
-              <time className="text-[11px] text-neutral-500 dark:text-neutral-400 truncate" dateTime={post.createdAt}>
-                {new Date(post.createdAt).toLocaleString()}
+              <p className="font-semibold text-gray-900 text-sm group-hover:text-blue-600 transition-colors">
+                {post.author?.name || 'User'}
+              </p>
+              <time className="text-xs text-gray-500" dateTime={post.createdAt}>
+                {formatTime(post.createdAt)}
               </time>
             </div>
           </Link>
+          
           {!disableMenu && isAuthor && (
             <div className="relative">
               <button
                 onClick={() => setShowMenu(m => !m)}
-                className="p-1 rounded-full hover:bg-neutral-200 dark:hover:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                className="p-2 rounded-xl hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
                 aria-label="Post options"
               >
-                <svg className="w-3.5 h-3.5 text-neutral-500 dark:text-neutral-400" fill="currentColor" viewBox="0 0 20 20">
+                <svg className="w-4 h-4 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
                   <circle cx="6" cy="10" r="1.5" />
                   <circle cx="10" cy="10" r="1.5" />
                   <circle cx="14" cy="10" r="1.5" />
@@ -128,26 +154,26 @@ export default function PostCard({ post, onUpdate, disableMenu = false, isModal,
               <AnimatePresence>
                 {showMenu && (
                   <motion.div
-                    initial={{ opacity: 0, scale: 0.94 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.94 }}
-                    className="absolute right-0 mt-2 bg-white dark:bg-[#222849] rounded-lg shadow-lg border border-neutral-200 dark:border-neutral-700 z-10 min-w-[112px]"
+                    initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                    className="absolute right-0 mt-2 bg-white rounded-xl shadow-lg border border-gray-200 z-10 min-w-[120px] overflow-hidden"
                   >
                     <button
                       onClick={() => {
                         setShowMenu(false);
                         setEditing(true);
                       }}
-                      className="block w-full px-3 py-2 text-xs text-left hover:bg-purple-50 dark:hover:bg-[#312d59] transition-colors"
+                      className="block w-full px-4 py-2.5 text-sm text-left hover:bg-blue-50 text-gray-700 transition-colors"
                     >
-                      Edit
+                      Edit Post
                     </button>
                     <button
                       onClick={() => {
                         setShowMenu(false);
                         deletePost();
                       }}
-                      className="block w-full px-3 py-2 text-left hover:bg-red-50 dark:hover:bg-red-950 text-red-600 dark:text-red-400 text-xs transition-colors"
+                      className="block w-full px-4 py-2.5 text-left hover:bg-red-50 text-red-600 text-sm transition-colors border-t border-gray-100"
                     >
                       Delete
                     </button>
@@ -158,35 +184,41 @@ export default function PostCard({ post, onUpdate, disableMenu = false, isModal,
           )}
         </div>
 
+        {/* Image Section - Enhanced */}
         {post.imageUrl && (
-          <div className="w-full bg-neutral-800">
-            <div className="relative w-full" style={{ paddingTop: '100%' }}>
+          <div className="w-full bg-gray-50">
+            <div className="relative w-full" style={{ paddingTop: '75%' }}> {/* Better aspect ratio */}
               <img
                 src={buildUrl(post.imageUrl)}
                 alt={post.caption || 'Post image'}
-                className="absolute inset-0 w-full h-full object-cover rounded-b-md"
+                className="absolute inset-0 w-full h-full object-cover"
                 loading="lazy"
               />
             </div>
           </div>
         )}
 
-        {/* Content */}
-        <div className="p-3 space-y-2">
-          <div className="flex items-center gap-5">
-            <button
+        {/* Content Section - Enhanced */}
+        <div className="p-4 space-y-3">
+          {/* Engagement Buttons - Modern Design */}
+          <div className="flex items-center gap-6">
+            <motion.button
               onClick={toggleLike}
               disabled={isLiking}
-              className="flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-purple-400 transition"
+              whileTap={{ scale: 0.95 }}
+              className={`flex items-center gap-2 p-2 rounded-xl transition-all duration-200 ${
+                liked 
+                  ? 'bg-red-50 text-red-600' 
+                  : 'hover:bg-gray-100 text-gray-600'
+              }`}
               aria-pressed={liked}
               aria-label={liked ? 'Unlike post' : 'Like post'}
             >
               <svg
-                className={`w-5 h-5 ${liked ? 'text-red-500' : 'text-neutral-500 dark:text-neutral-400'}`}
+                className={`w-5 h-5 ${liked ? 'fill-current' : ''}`}
                 fill={liked ? 'currentColor' : 'none'}
-                stroke={liked ? 'none' : 'currentColor'}
+                stroke="currentColor"
                 viewBox="0 0 24 24"
-                aria-hidden="true"
               >
                 <path
                   strokeLinecap="round"
@@ -195,31 +227,53 @@ export default function PostCard({ post, onUpdate, disableMenu = false, isModal,
                   d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
                 />
               </svg>
-              <span className="text-neutral-700 dark:text-neutral-300 font-semibold select-none text-xs">{likes}</span>
-            </button>
-            <button
+              <span className={`font-semibold text-sm ${liked ? 'text-red-600' : 'text-gray-700'}`}>
+                {likes}
+              </span>
+            </motion.button>
+
+            <motion.button
               onClick={() => setShowComments(s => !s)}
+              whileTap={{ scale: 0.95 }}
               aria-expanded={showComments}
               aria-controls={`comments-section-${post._id}`}
-              className="flex items-center gap-1 text-neutral-500 dark:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-purple-400"
+              className={`flex items-center gap-2 p-2 rounded-xl transition-all duration-200 ${
+                showComments 
+                  ? 'bg-blue-50 text-blue-600' 
+                  : 'hover:bg-gray-100 text-gray-600'
+              }`}
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                   d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
               </svg>
-              <span className="text-neutral-700 dark:text-neutral-400 font-semibold text-xs">{commentsCount}</span>
-            </button>
+              <span className={`font-semibold text-sm ${showComments ? 'text-blue-600' : 'text-gray-700'}`}>
+                {commentsCount}
+              </span>
+            </motion.button>
           </div>
-          <p className="text-neutral-900 dark:text-neutral-100 whitespace-pre-wrap break-words select-text text-sm">{post.caption}</p>
-          <div className="flex flex-wrap gap-1">
-            {post.tags?.map((t, i) => (
-              <TagChip key={i} tag={t} />
-            ))}
-          </div>
+
+          {/* Caption - Enhanced Typography */}
+          {post.caption && (
+            <p className="text-gray-900 whitespace-pre-wrap break-words select-text text-[15px] leading-relaxed">
+              {post.caption}
+            </p>
+          )}
+
+          {/* Tags - Enhanced */}
+          {post.tags && post.tags.length > 0 && (
+            <div className="flex flex-wrap gap-2 pt-2">
+              {post.tags.map((t, i) => (
+                <TagChip key={i} tag={t} />
+              ))}
+            </div>
+          )}
+
+          {/* View Comments Prompt */}
           {!showComments && commentsCount > 0 && (
             <button
               onClick={() => setShowComments(true)}
-              className="text-xs text-neutral-500 hover:underline"
+              className="text-sm text-blue-500 hover:text-blue-600 font-medium transition-colors"
               aria-label={`View all ${commentsCount} ${commentsCount === 1 ? 'comment' : 'comments'}`}
             >
               View all {commentsCount} {commentsCount === 1 ? 'comment' : 'comments'}
@@ -227,6 +281,7 @@ export default function PostCard({ post, onUpdate, disableMenu = false, isModal,
           )}
         </div>
 
+        {/* Comments Section - Enhanced */}
         <AnimatePresence>
           {showComments && (
             <motion.div
@@ -234,26 +289,29 @@ export default function PostCard({ post, onUpdate, disableMenu = false, isModal,
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.25 }}
-              className="p-3 border-t border-neutral-200 dark:border-[#263054] bg-neutral-50 dark:bg-[#181d32] rounded-b-xl"
+              transition={{ duration: 0.3 }}
+              className="border-t border-gray-100 bg-gray-50"
             >
-              <CommentList postId={post._id} key={commentsVersion} />
-              <CommentForm
-                postId={post._id}
-                onAdded={() => {
-                  setCommentsCount(c => {
-                    const newCount = c + 1;
-                    setCommentsVersion(v => v + 1); // Refresh comments list
-                    const broadcast = { ...(post || {}), _id: post._id || post.id, commentsCount: newCount };
-                    window.dispatchEvent(new CustomEvent('post:updated', { detail: broadcast }));
-                    onUpdate?.();
-                    return newCount;
-                  });
-                }}
-              />
+              <div className="p-4">
+                <CommentList postId={post._id} key={commentsVersion} />
+                <CommentForm
+                  postId={post._id}
+                  onAdded={() => {
+                    setCommentsCount(c => {
+                      const newCount = c + 1;
+                      setCommentsVersion(v => v + 1);
+                      const broadcast = { ...(post || {}), _id: post._id || post.id, commentsCount: newCount };
+                      window.dispatchEvent(new CustomEvent('post:updated', { detail: broadcast }));
+                      onUpdate?.();
+                      return newCount;
+                    });
+                  }}
+                />
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
+
         {editing && (
           <EditPost
             post={post}
@@ -263,7 +321,7 @@ export default function PostCard({ post, onUpdate, disableMenu = false, isModal,
         )}
       </motion.article>
 
-      {/* Luna/Figma styled confirmation modal, with non-blurred backdrop */}
+      {/* Enhanced Delete Confirmation Modal */}
       <AnimatePresence>
         {confirmingDelete && (
           <motion.div
@@ -274,48 +332,46 @@ export default function PostCard({ post, onUpdate, disableMenu = false, isModal,
             aria-modal="true"
             role="dialog"
           >
-            {/* The modal dialog */}
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              transition={{ duration: 0.25 }}
-              className="relative max-w-md w-full bg-white dark:bg-[#192048] rounded-2xl shadow-2xl border border-purple-200 dark:border-purple-700 p-6 flex flex-col items-center z-50"
+              transition={{ duration: 0.3 }}
+              className="relative max-w-md w-full bg-white rounded-2xl shadow-2xl border border-gray-200 p-6 flex flex-col items-center z-50"
             >
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-600 to-purple-700 flex items-center justify-center shadow mb-3">
-                <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M3 6h18M9 6V4a3 3 0 016 0v2M10 11v6m4-6v6M5 6l1 14a2 2 0 002 2h8a2 2 0 002-2l1-14" />
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-red-500 to-pink-600 flex items-center justify-center shadow-lg mb-4">
+                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 6h18M9 6V4a3 3 0 016 0v2M10 11v6m4-6v6M5 6l1 14a2 2 0 002 2h8a2 2 0 002-2l1-14" />
                 </svg>
               </div>
-              <h2 className="text-center text-xl font-bold text-purple-800 dark:text-purple-100 mb-3">Delete Post?</h2>
-              <p className="text-center text-sm text-neutral-600 dark:text-neutral-300 mb-6">
+              <h2 className="text-center text-xl font-bold text-gray-900 mb-2">Delete Post?</h2>
+              <p className="text-center text-gray-600 mb-6">
                 Are you sure you want to remove this post? This action cannot be undone.
               </p>
               {deleteError && (
-                <div className="mb-4 px-3 py-2 rounded bg-red-100 text-red-700 text-xs dark:bg-red-900 dark:text-red-300">
+                <div className="mb-4 px-4 py-2 rounded-xl bg-red-50 text-red-700 text-sm">
                   {deleteError}
                 </div>
               )}
-              <div className="flex w-full gap-3 justify-center">
+              <div className="flex w-full gap-3">
                 <button
                   type="button"
                   onClick={() => setConfirmingDelete(false)}
-                  className="flex-1 px-4 py-2 rounded-xl bg-neutral-100 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300 font-semibold text-sm hover:bg-neutral-200 dark:hover:bg-neutral-800 transition"
+                  className="flex-1 px-4 py-3 rounded-xl bg-gray-100 text-gray-700 font-semibold hover:bg-gray-200 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
                   onClick={reallyDelete}
-                  className="flex-1 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-purple-700 text-white font-semibold text-sm hover:from-blue-700 hover:to-purple-800 transition"
+                  className="flex-1 px-4 py-3 rounded-xl bg-gradient-to-r from-red-500 to-pink-600 text-white font-semibold hover:from-red-600 hover:to-pink-700 transition-colors"
                 >
                   Delete
                 </button>
               </div>
             </motion.div>
-            {/* NON-blur semi-transparent backdrop */}
             <div
-              className="fixed inset-0 bg-black bg-opacity-40"
+              className="fixed inset-0 bg-black bg-opacity-50"
               onClick={() => setConfirmingDelete(false)}
               style={{ zIndex: 40 }}
             />

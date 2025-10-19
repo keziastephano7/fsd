@@ -8,9 +8,9 @@ import { AuthContext } from '../AuthContext';
 // Modern Loading Skeleton
 function LoadingSkeleton() {
   return (
-    <div className="space-y-4">
+    <div className="space-y-8 max-w-2xl mx-auto"> {/* Increased spacing */}
       {[1, 2, 3].map(i => (
-        <div key={i} className="animate-pulse">
+        <div key={i} className="bg-white rounded-2xl border border-gray-200 p-6 animate-pulse shadow-sm">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 rounded-full bg-gray-200" />
             <div className="space-y-2 flex-1">
@@ -35,15 +35,15 @@ function LoadingSkeleton() {
 // Clean Empty State
 function EmptyState() {
   return (
-    <div className="text-center py-16">
-      <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
-        <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <div className="text-center py-20 max-w-2xl mx-auto"> {/* Increased padding */}
+      <div className="w-24 h-24 mx-auto mb-6 rounded-2xl bg-gray-100 flex items-center justify-center shadow-sm">
+        <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
         </svg>
       </div>
-      <h3 className="text-xl font-semibold text-gray-900 mb-2">Welcome to your feed</h3>
-      <p className="text-gray-600 mb-6">When people you follow start posting, you'll see their content here.</p>
-      <button className="px-6 py-2 bg-black text-white rounded-lg font-medium hover:bg-gray-800 transition-colors">
+      <h3 className="text-2xl font-bold text-gray-900 mb-3">Welcome to your feed</h3>
+      <p className="text-gray-600 mb-8 text-lg">When people you follow start posting, you'll see their content here.</p>
+      <button className="px-8 py-3 bg-black text-white rounded-2xl font-medium hover:bg-gray-800 transition-colors shadow-sm">
         Find people to follow
       </button>
     </div>
@@ -53,35 +53,23 @@ function EmptyState() {
 // Modern Error State
 function ErrorState({ error, onRetry }) {
   return (
-    <div className="text-center py-16">
-      <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
-        <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <div className="text-center py-20 max-w-2xl mx-auto"> {/* Increased padding */}
+      <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-red-100 flex items-center justify-center shadow-sm">
+        <svg className="w-10 h-10 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
       </div>
-      <h3 className="text-lg font-semibold text-gray-900 mb-2">Unable to load feed</h3>
-      <p className="text-gray-600 mb-4 text-sm">{error}</p>
+      <h3 className="text-xl font-semibold text-gray-900 mb-3">Unable to load feed</h3>
+      <p className="text-gray-600 mb-6 text-lg">{error}</p>
       <button
         onClick={onRetry}
-        className="px-4 py-2 bg-black text-white rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors"
+        className="px-6 py-3 bg-black text-white rounded-2xl font-medium hover:bg-gray-800 transition-colors shadow-sm"
       >
         Try Again
       </button>
     </div>
   );
 }
-
-// Format time to hh:mm am/pm
-const formatTime = (dateString) => {
-  if (!dateString) return '';
-  
-  const date = new Date(dateString);
-  return date.toLocaleTimeString('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true
-  }).toLowerCase();
-};
 
 export default function Feed({ tagFilter: propTagFilter } = {}) {
   const { user } = useContext(AuthContext);
@@ -103,17 +91,9 @@ export default function Feed({ tagFilter: propTagFilter } = {}) {
     return rawPosts.map(p => {
       const authorId = (typeof p.author === 'object' && (p.author._id || p.author.id)) || p.author;
       if (String(authorId) === String(user.id)) {
-        return { 
-          ...p, 
-          author: { ...(user || {}), id: user.id, _id: user.id },
-          // Format the time for each post
-          formattedTime: formatTime(p.createdAt)
-        };
+        return { ...p, author: { ...(user || {}), id: user.id, _id: user.id } };
       }
-      return {
-        ...p,
-        formattedTime: formatTime(p.createdAt)
-      };
+      return p;
     });
   }, [user]);
 
@@ -152,18 +132,12 @@ export default function Feed({ tagFilter: propTagFilter } = {}) {
   const prependIfNotExists = useCallback((newPost) => {
     const newId = newPost?._id || newPost?.id;
     if (!newId) {
-      setAllPosts(prev => [{
-        ...newPost,
-        formattedTime: formatTime(newPost.createdAt)
-      }, ...prev]);
+      setAllPosts(prev => [newPost, ...prev]);
       return;
     }
     setAllPosts(prev => {
       if (prev.some(p => (p._id || p.id) === newId)) return prev;
-      return [{
-        ...newPost,
-        formattedTime: formatTime(newPost.createdAt)
-      }, ...prev];
+      return [newPost, ...prev];
     });
   }, []);
 
@@ -190,11 +164,7 @@ export default function Feed({ tagFilter: propTagFilter } = {}) {
       const updated = e.detail || {};
       const updatedId = updated._id || updated.id;
       if (!updatedId) return;
-      setAllPosts(prev => prev.map(p => ((p._id || p.id) === updatedId ? { 
-        ...p, 
-        ...updated,
-        formattedTime: formatTime(updated.createdAt || p.createdAt)
-      } : p)));
+      setAllPosts(prev => prev.map(p => ((p._id || p.id) === updatedId ? { ...p, ...updated } : p)));
     };
 
     window.addEventListener('post:created', onPostCreated);
@@ -212,11 +182,7 @@ export default function Feed({ tagFilter: propTagFilter } = {}) {
     if (!updated) return;
     const id = updated._id || updated.id;
     if (!id) return;
-    setAllPosts(prev => prev.map(p => ((p._id || p.id) === id ? { 
-      ...p, 
-      ...updated,
-      formattedTime: formatTime(updated.createdAt || p.createdAt)
-    } : p)));
+    setAllPosts(prev => prev.map(p => ((p._id || p.id) === id ? { ...p, ...updated } : p)));
   }, []);
 
   const clearFilter = () => navigate('/');
@@ -228,24 +194,24 @@ export default function Feed({ tagFilter: propTagFilter } = {}) {
   if (!user) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-        <div className="max-w-md w-full bg-white rounded-2xl shadow-sm border border-gray-300 p-8 text-center">
-          <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-black flex items-center justify-center">
-            <span className="text-white font-bold text-xl">L</span>
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-lg border border-gray-200 p-8 text-center">
+          <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-black flex items-center justify-center shadow-md">
+            <span className="text-white font-bold text-2xl">L</span>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">Join Luna</h1>
-          <p className="text-gray-600 mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-4">Join Luna</h1>
+          <p className="text-gray-600 mb-8 text-lg">
             Connect with friends and share your experiences in a beautiful, modern space.
           </p>
-          <div className="space-y-3">
+          <div className="space-y-4">
             <button
               onClick={() => navigate('/login')}
-              className="w-full py-3 bg-black text-white rounded-lg font-medium hover:bg-gray-800 transition-colors"
+              className="w-full py-3.5 bg-black text-white rounded-2xl font-medium hover:bg-gray-800 transition-colors shadow-sm"
             >
               Sign In
             </button>
             <button
               onClick={() => navigate('/signup')}
-              className="w-full py-3 border border-gray-300 text-gray-900 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+              className="w-full py-3.5 border border-gray-300 text-gray-900 rounded-2xl font-medium hover:bg-gray-50 transition-colors shadow-sm"
             >
               Create Account
             </button>
@@ -256,21 +222,21 @@ export default function Feed({ tagFilter: propTagFilter } = {}) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-2xl mx-auto px-4 py-6">
+    <div className="min-h-screen bg-gray-50 py-8"> {/* Added vertical padding */}
+      <div className="max-w-2xl mx-auto px-4">
         {/* Feed Header */}
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Feed</h1>
-          <p className="text-gray-600">Latest updates from your community</p>
+        <div className="mb-8 text-center"> {/* Increased margin */}
+          <h1 className="text-3xl font-bold text-gray-900 mb-3">Your Feed</h1>
+          <p className="text-gray-600 text-lg">Latest updates from your community</p>
         </div>
 
         {/* Active Filters */}
         {activeTagsArray.length > 0 && (
-          <div className="mb-6 p-4 bg-white rounded-lg border border-gray-300 flex items-center justify-between">
+          <div className="mb-8 p-4 bg-white rounded-2xl border border-gray-200 shadow-sm flex items-center justify-between"> {/* Increased margin */}
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-sm text-gray-600">Filtered by:</span>
+              <span className="text-sm text-gray-600 font-medium">Filtered by:</span>
               {activeTagsArray.map(tag => (
-                <span key={tag} className="px-2 py-1 bg-gray-100 rounded text-sm font-medium">
+                <span key={tag} className="px-3 py-1.5 bg-gray-100 rounded-full text-sm font-medium">
                   #{tag}
                 </span>
               ))}
@@ -284,7 +250,7 @@ export default function Feed({ tagFilter: propTagFilter } = {}) {
           </div>
         )}
 
-        {/* Feed Content - No container borders around PostCards */}
+        {/* Feed Content */}
         {loading ? (
           <LoadingSkeleton />
         ) : error ? (
@@ -292,24 +258,17 @@ export default function Feed({ tagFilter: propTagFilter } = {}) {
         ) : displayedPosts.length === 0 ? (
           <EmptyState />
         ) : (
-          <div className="space-y-0"> {/* Changed from space-y-4 to space-y-0 to remove gaps */}
+          <div className="space-y-8"> {/* Significantly increased spacing between cards */}
             <AnimatePresence>
               {displayedPosts.map((post, index) => (
                 <motion.div
                   key={post._id || post.id}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                  className="bg-white" // Removed border, rounded, shadow, and hover effects
+                  transition={{ delay: index * 0.1, duration: 0.4 }}
+                  className="transform hover:scale-[1.02] transition-transform duration-300" // Added hover effect
                 >
-                  {/* Pass formattedTime to PostCard */}
-                  <PostCard 
-                    post={{
-                      ...post,
-                      formattedTime: post.formattedTime || formatTime(post.createdAt)
-                    }} 
-                    onUpdate={handleSinglePostUpdate} 
-                  />
+                  <PostCard post={post} onUpdate={handleSinglePostUpdate} />
                 </motion.div>
               ))}
             </AnimatePresence>
