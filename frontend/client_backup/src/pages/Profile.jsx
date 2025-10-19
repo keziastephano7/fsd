@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useContext, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import API from '../api';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { AuthContext } from '../AuthContext';
@@ -13,7 +14,8 @@ export default function Profile() {
   const [posts, setPosts] = useState([]);
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [loadingPosts, setLoadingPosts] = useState(true);
-  const [activeTab, setActiveTab] = useState('posts'); // 'posts' or 'thoughts'
+  const [activeTab, setActiveTab] = useState('posts');
+  const [hoveredPost, setHoveredPost] = useState(null);
   const mountedRef = useRef(true);
 
   useEffect(() => {
@@ -55,335 +57,455 @@ export default function Profile() {
     };
   }, [id]);
 
-  useEffect(() => {
-    const onPostCreated = (e) => {
-      const newPost = e.detail;
-      if (!newPost) return;
-      const authorId = newPost.author?._id || newPost.author || newPost.authorId;
-      if (String(authorId) === String(id)) {
-        setPosts(prev => {
-          if (prev.some(p => (p._id || p.id) === (newPost._id || newPost.id))) return prev;
-          return [newPost, ...prev];
-        });
-      }
-    };
-    window.addEventListener('post:created', onPostCreated);
-    return () => window.removeEventListener('post:created', onPostCreated);
-  }, [id]);
-
-  useEffect(() => {
-    const onUserUpdated = (e) => {
-      const updated = e.detail || {};
-      const updatedId = updated.id || updated._id || null;
-      if (!updatedId) return;
-      if (String(updatedId) === String(id)) {
-        API.get(`/users/${id}`).then(res => setProfile(res.data)).catch(() => {});
-      }
-    };
-    window.addEventListener('user:updated', onUserUpdated);
-    return () => window.removeEventListener('user:updated', onUserUpdated);
-  }, [id]);
-
+  // Handle post updates for synchronization
   useEffect(() => {
     const onPostUpdated = (e) => {
       const updated = e.detail;
       if (!updated) return;
       const pid = updated._id || updated.id;
       if (!pid) return;
-      setPosts(prev => prev.map(p => ((p._id || p.id) === pid ? { ...p, ...updated } : p)));
+      
+      // Update the post with the new data
+      setPosts(prev => prev.map(p => {
+        if ((p._id || p.id) === pid) {
+          return { ...p, ...updated };
+        }
+        return p;
+      }));
     };
+
     window.addEventListener('post:updated', onPostUpdated);
     return () => window.removeEventListener('post:updated', onPostUpdated);
   }, []);
 
   const isOwner = !!user && (String(user.id || user._id) === String(id));
-  const handleEdit = () => navigate(`/profile/${id}/edit`);
-
   const thoughts = posts.filter(p => !p.imageUrl);
   const mediaPosts = posts.filter(p => p.imageUrl);
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-neutral-50 via-purple-50/20 to-blue-50/20 dark:from-[#050b14] dark:via-[#0a1628] dark:to-[#0d1b2a] pb-12">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
+  // Safe likes array check
+  const getLikesArray = (post) => {
+    if (!post.likes) return [];
+    if (Array.isArray(post.likes)) return post.likes;
+    return [];
+  };
 
-        {/* Profile Header */}
-        <div className="relative mb-8 animate-fadeIn">
-          <div className="h-48 sm:h-56 rounded-t-3xl bg-[radial-gradient(600px_180px_at_10%_20%,rgba(139,92,246,0.18),transparent),linear-gradient(135deg,#5b8def,#8b5cf6)] relative overflow-hidden shadow-2xl">
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/6 to-transparent animate-shimmer mix-blend-overlay"></div>
-            <div className="absolute -left-12 -top-8 w-48 h-48 rounded-full bg-white/6 blur-3xl animate-pulse-slow"></div>
+  // Handle like for thoughts - FIXED SYNC ISSUE
+  const handleThoughtLike = async (thoughtId) => {
+    try {
+      // Optimistic update first
+      const thought = posts.find(p => (p._id || p.id) === thoughtId);
+      if (!thought) return;
+
+      const currentLikes = getLikesArray(thought);
+      const userId = user?.id || user?._id;
+      const isCurrentlyLiked = currentLikes.some(likeId => 
+        String(likeId) === String(userId)
+      );
+
+      // Optimistically update UI
+      setPosts(prev => prev.map(p => {
+        if ((p._id || p.id) === thoughtId) {
+          if (isCurrentlyLiked) {
+            // Remove like optimistically
+            return { 
+              ...p, 
+              likes: currentLikes.filter(likeId => String(likeId) !== String(userId))
+            };
+          } else {
+            // Add like optimistically
+            return { 
+              ...p, 
+              likes: [...currentLikes, userId]
+            };
+          }
+        }
+        return p;
+      }));
+
+      // Make API call
+      const res = await API.post(`/posts/${thoughtId}/like`);
+      const responseData = res.data;
+
+      // Since backend only returns count, we need to refetch the post to get updated likes array
+      try {
+        const updatedPostRes = await API.get(`/posts/${thoughtId}`);
+        const updatedPost = updatedPostRes.data;
+        
+        // Update with actual data from backend
+        setPosts(prev => prev.map(p => {
+          if ((p._id || p.id) === thoughtId) {
+            return { ...p, likes: updatedPost.likes || [] };
+          }
+          return p;
+        }));
+
+        // Dispatch event for synchronization with Feed
+        window.dispatchEvent(new CustomEvent('post:updated', { 
+          detail: { 
+            ...updatedPost,
+            _id: thoughtId, 
+            id: thoughtId
+          }
+        }));
+
+      } catch (fetchError) {
+        console.error('Failed to fetch updated post:', fetchError);
+        // If refetch fails, at least we have the optimistic update
+      }
+
+    } catch (err) {
+      console.error('Failed to like thought:', err);
+      
+      // Revert optimistic update on error
+      setPosts(prev => prev.map(p => {
+        if ((p._id || p.id) === thoughtId) {
+          const originalThought = posts.find(post => (post._id || post.id) === thoughtId);
+          return { ...p, likes: getLikesArray(originalThought) };
+        }
+        return p;
+      }));
+    }
+  };
+
+  // iOS-style Edit Profile Button
+  const EditProfileButton = () => (
+    <motion.button
+      onClick={() => navigate(`/profile/${id}/edit`)}
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
+      className="px-5 py-2.5 rounded-2xl font-medium bg-white border border-gray-300 text-gray-900 hover:bg-gray-50 transition-all duration-200 shadow-sm"
+    >
+      Edit Profile
+    </motion.button>
+  );
+
+  // Instagram-style Post Grid Item
+  const PostGridItem = ({ post, index }) => (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ delay: index * 0.1 }}
+      className="relative aspect-square bg-gray-100 rounded-2xl overflow-hidden group cursor-pointer"
+      onMouseEnter={() => setHoveredPost(post._id || post.id)}
+      onMouseLeave={() => setHoveredPost(null)}
+    >
+      {post.imageUrl && (
+        <img
+          src={buildUrl(post.imageUrl)}
+          alt={post.caption || 'Post image'}
+          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+        />
+      )}
+      
+      {/* Instagram-style Hover Overlay */}
+      <AnimatePresence>
+        {(hoveredPost === (post._id || post.id)) && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 bg-black/40 flex items-center justify-center"
+          >
+            <div className="flex items-center gap-6 text-white">
+              <div className="flex items-center gap-2">
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                </svg>
+                <span className="font-semibold">{getLikesArray(post).length || 0}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+                <span className="font-semibold">{post.comments?.length || 0}</span>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+
+  // iOS-style Thought Card with user profile and synchronized likes
+  const ThoughtCard = ({ thought, index }) => {
+    const likesArray = getLikesArray(thought);
+    const isLiked = likesArray.some(likeId => String(likeId) === String(user?.id || user?._id));
+    
+    return (
+      <motion.article
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: index * 0.1 }}
+        className="p-5 bg-white rounded-2xl border border-gray-200 hover:bg-gray-50 transition-colors duration-200 cursor-pointer mb-3"
+      >
+        <div className="flex gap-3">
+          {/* User Avatar */}
+          <div className="flex-shrink-0">
+            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-semibold text-sm shadow-sm">
+              {profile?.avatarUrl ? (
+                <img
+                  src={buildUrl(profile.avatarUrl)}
+                  alt={profile.name}
+                  className="w-full h-full rounded-full object-cover"
+                />
+              ) : (
+                String(profile?.name || 'U').charAt(0).toUpperCase()
+              )}
+            </div>
           </div>
 
-          <div className="bg-white dark:bg-[#0a1628] rounded-b-3xl shadow-2xl border-x border-b border-purple-100/50 dark:border-purple-900/30 px-6 sm:px-8 pb-8 relative">
-            {isOwner && (
-              <div className="absolute top-4 right-4">
-                <button
-                  onClick={handleEdit}
-                  className="px-4 py-2 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold text-sm shadow-lg hover:shadow-purple-500/50 transition-all duration-300 hover:scale-105 active:scale-95"
-                >
-                  Edit Profile
-                </button>
-              </div>
-            )}
+          <div className="flex-1 min-w-0">
+            {/* User Info */}
+            <div className="flex items-center gap-2 mb-2">
+              <span className="font-bold text-gray-900 text-[15px]">
+                {profile?.name || 'User'}
+              </span>
+              <span className="text-gray-500 text-sm">·</span>
+              <span className="text-gray-500 text-sm">
+                @{profile?.username || profile?.email?.split('@')[0] || 'user'}
+              </span>
+            </div>
 
-            <div className="flex flex-col sm:flex-row items-center sm:items-end gap-6 -mt-16 sm:-mt-20">
-              <div className="relative group">
-                <div className="w-32 h-32 sm:w-36 sm:h-36 rounded-full overflow-hidden border-4 border-white dark:border-[#0a1628] shadow-2xl ring-4 ring-purple-500/30 transition-all duration-300 group-hover:ring-purple-500/60 group-hover:scale-105">
+            {/* Thought Content */}
+            <p className="text-gray-900 text-[15px] leading-relaxed mb-3 whitespace-pre-wrap">
+              {thought.caption || thought.content}
+            </p>
+
+            {/* Engagement Metrics */}
+            <div className="flex items-center gap-6 text-gray-500">
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleThoughtLike(thought._id || thought.id);
+                }}
+                className={`flex items-center gap-1 group transition-colors ${
+                  isLiked ? 'text-red-500' : 'hover:text-red-500'
+                }`}
+              >
+                <motion.div 
+                  whileTap={{ scale: 0.9 }}
+                  className={`p-1 rounded-full transition-colors ${
+                    isLiked ? 'bg-red-100' : 'group-hover:bg-red-50'
+                  }`}
+                >
+                  <svg 
+                    className="w-4 h-4" 
+                    fill={isLiked ? "currentColor" : "none"} 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                  </svg>
+                </motion.div>
+                <span className={`text-xs ${isLiked ? 'text-red-500' : ''}`}>
+                  {likesArray.length || 0}
+                </span>
+              </button>
+
+              <button className="flex items-center gap-1 group hover:text-blue-500 transition-colors">
+                <div className="p-1 rounded-full group-hover:bg-blue-50">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                  </svg>
+                </div>
+                <span className="text-xs">{thought.comments?.length || 0}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </motion.article>
+    );
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Profile Header with iOS-style rounded corners */}
+      <div className="bg-white">
+        {/* Banner */}
+        <div className="h-48 bg-gradient-to-r from-gray-900 to-gray-700 rounded-b-3xl" />
+        
+        {/* Profile Info Card */}
+        <div className="px-6 pb-8 -mt-16">
+          <div className="bg-white rounded-3xl shadow-sm border border-gray-200 p-6">
+            <div className="flex flex-col sm:flex-row items-start gap-6">
+              {/* Avatar with Online Indicator */}
+              <div className="relative -mt-20 sm:-mt-24">
+                <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-3xl border-4 border-white bg-white shadow-lg overflow-hidden">
                   {loadingProfile ? (
-                    <div className="w-full h-full bg-gradient-to-br from-blue-400 to-purple-400 animate-pulse"></div>
+                    <div className="w-full h-full bg-gray-200 animate-pulse" />
                   ) : profile?.avatarUrl ? (
                     <img
                       src={buildUrl(profile.avatarUrl)}
-                      alt={`${profile.name || 'User'} avatar`}
+                      alt={profile.name}
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-blue-500 via-purple-500 to-purple-600 flex items-center justify-center text-white font-bold text-5xl">
+                    <div className="w-full h-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-bold text-2xl">
                       {profile?.name?.charAt(0).toUpperCase() ?? 'U'}
                     </div>
                   )}
                 </div>
                 {isOwner && (
-                  <div className="absolute bottom-2 right-2 w-6 h-6 bg-green-500 rounded-full border-4 border-white dark:border-[#0a1628] shadow-lg" aria-label="Online indicator"></div>
+                  <div className="absolute bottom-2 right-2 w-4 h-4 bg-green-500 rounded-full border-2 border-white shadow-sm" />
                 )}
               </div>
 
-              <div className="flex-1 text-center sm:text-left mb-4 sm:mb-0">
-                <h1 className="text-3xl font-bold text-neutral-900 dark:text-white mb-2 tracking-tight">
-                  {loadingProfile ? (
-                    <span className="inline-block w-48 h-8 bg-neutral-200 dark:bg-neutral-800 rounded-lg animate-pulse"></span>
-                  ) : (
-                    profile?.name || 'Unnamed User'
+              {/* User Info - Clean single bio display */}
+              <div className="flex-1 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between">
+                  <div className="space-y-1">
+                    <h1 className="text-2xl font-bold text-gray-900">
+                      {loadingProfile ? (
+                        <div className="h-7 w-48 bg-gray-200 rounded-2xl animate-pulse" />
+                      ) : (
+                        profile?.name || 'Unnamed User'
+                      )}
+                    </h1>
+                    <p className="text-gray-500 text-lg">
+                      {loadingProfile ? (
+                        <div className="h-5 w-32 bg-gray-200 rounded-2xl animate-pulse" />
+                      ) : (
+                        `@${profile?.username || profile?.email?.split('@')[0] || 'user'}`
+                      )}
+                    </p>
+                  </div>
+                  
+                  {isOwner && (
+                    <div className="mt-3 sm:mt-0">
+                      <EditProfileButton />
+                    </div>
                   )}
-                </h1>
-                <p className="text-neutral-600 dark:text-neutral-400 max-w-md leading-relaxed">
+                </div>
+
+                {/* Single Bio Display */}
+                <p className="text-gray-900 leading-relaxed text-[15px]">
                   {loadingProfile ? (
-                    <span className="inline-block w-64 h-5 bg-neutral-200 dark:bg-neutral-800 rounded-lg animate-pulse"></span>
+                    <div className="h-4 w-full bg-gray-200 rounded-2xl animate-pulse" />
                   ) : (
-                    profile?.bio || '✨ No bio yet — the mystery continues...'
+                    profile?.bio || 'No bio yet'
                   )}
                 </p>
-              </div>
 
-              {!isOwner && (
-                <div className="flex gap-3 sm:mb-4">
-                  <button className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold shadow-lg hover:shadow-purple-500/50 transition-all duration-300 hover:scale-105 active:scale-95 flex items-center gap-2">
-                    Follow
-                  </button>
-                  <Link
-                    to={`/messages/${profile?._id || profile?.id || id}`}
-                    className="px-6 py-2.5 rounded-xl bg-white dark:bg-[#1a1f3a] text-purple-600 dark:text-purple-400 font-semibold border-2 border-purple-300 dark:border-purple-700 hover:bg-purple-50 dark:hover:bg-purple-950/30 transition-all duration-300 hover:scale-105 active:scale-95 flex items-center gap-2 shadow-md"
-                  >
-                    Message
-                  </Link>
+                {/* Stats with iOS-style rounded corners */}
+                <div className="flex items-center gap-6 text-sm pt-2">
+                  <div className="flex items-center gap-1">
+                    <span className="font-semibold text-gray-900">{mediaPosts.length}</span>
+                    <span className="text-gray-600">posts</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="font-semibold text-gray-900">{profile?.followers?.length || 0}</span>
+                    <span className="text-gray-600">followers</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="font-semibold text-gray-900">{thoughts.length}</span>
+                    <span className="text-gray-600">thoughts</span>
+                  </div>
                 </div>
-              )}
-            </div>
 
-            {/* Stats */}
-            <div className="mt-8 pt-6 border-t border-neutral-200 dark:border-neutral-800 max-w-md mx-auto sm:mx-0">
-              <div className="grid grid-cols-3 gap-4">
-                <div className="text-center sm:text-left p-4 rounded-xl bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-950/20 dark:to-purple-950/20 border border-purple-200/50 dark:border-purple-800/30 transition-transform duration-300 hover:scale-105 hover:shadow-lg">
-                  <div className="font-bold text-2xl bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                    {loadingPosts ? '...' : posts.length}
+                {!isOwner && (
+                  <div className="flex gap-3 pt-2">
+                    <button className="px-5 py-2 bg-black text-white rounded-2xl text-sm font-medium hover:bg-gray-800 transition-colors shadow-sm">
+                      Follow
+                    </button>
+                    <button className="px-5 py-2 border border-gray-300 text-gray-900 rounded-2xl text-sm font-medium hover:bg-gray-50 transition-colors shadow-sm">
+                      Message
+                    </button>
                   </div>
-                  <div className="text-xs font-medium text-neutral-600 dark:text-neutral-400 mt-1">Posts</div>
-                </div>
-                <div className="text-center sm:text-left p-4 rounded-xl bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950/20 dark:to-pink-950/20 border border-purple-200/50 dark:border-purple-800/30 transition-transform duration-300 hover:scale-105 hover:shadow-lg">
-                  <div className="font-bold text-2xl bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-                    {loadingProfile ? '...' : (profile?.followers?.length ?? 0)}
-                  </div>
-                  <div className="text-xs font-medium text-neutral-600 dark:text-neutral-400 mt-1">Followers</div>
-                </div>
-                <div className="text-center sm:text-left p-4 rounded-xl bg-gradient-to-br from-pink-50 to-purple-50 dark:from-pink-950/20 dark:to-purple-950/20 border border-purple-200/50 dark:border-purple-800/30 transition-transform duration-300 hover:scale-105 hover:shadow-lg">
-                  <div className="font-bold text-2xl bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">
-                    {loadingPosts ? '...' : thoughts.length}
-                  </div>
-                  <div className="text-xs font-medium text-neutral-600 dark:text-neutral-400 mt-1">Thoughts</div>
-                </div>
+                )}
               </div>
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Tabs */}
-        <div className="mb-6 animate-fadeIn" style={{ animationDelay: '0.1s' }}>
-          <div className="bg-white dark:bg-[#0a1628] rounded-2xl shadow-xl border border-purple-100/50 dark:border-purple-900/30 p-2 inline-flex gap-2 justify-center max-w-md mx-auto sm:mx-0">
-            <button
-              onClick={() => setActiveTab('posts')}
-              className={`px-6 py-2.5 rounded-xl font-semibold transition-all duration-300 flex items-center gap-2 ${
-                activeTab === 'posts'
-                  ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg scale-105'
-                  : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-900/50'
-              }`}
-              aria-selected={activeTab === 'posts'}
-              role="tab"
-            >
-              Posts
-              <span
-                className={`px-2 py-0.5 rounded-full text-xs font-bold ${
-                  activeTab === 'posts'
-                    ? 'bg-white/20'
-                    : 'bg-neutral-200 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300'
-                }`}
-              >
-                {mediaPosts.length}
-              </span>
-            </button>
-            <button
-              onClick={() => setActiveTab('thoughts')}
-              className={`px-6 py-2.5 rounded-xl font-semibold transition-all duration-300 flex items-center gap-2 ${
-                activeTab === 'thoughts'
-                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg scale-105'
-                  : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-900/50'
-              }`}
-              aria-selected={activeTab === 'thoughts'}
-              role="tab"
-            >
-              Thoughts
-              <span
-                className={`px-2 py-0.5 rounded-full text-xs font-bold ${
-                  activeTab === 'thoughts'
-                    ? 'bg-white/20'
-                    : 'bg-neutral-200 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300'
-                }`}
-              >
-                {thoughts.length}
-              </span>
-            </button>
-          </div>
+      {/* Content Tabs with iOS-style rounded corners - FIXED SPACING */}
+      <div className="max-w-4xl mx-auto px-6 mt-4"> {/* Added mt-8 for better spacing */}
+        <div className="flex justify-center bg-white rounded-2xl shadow-sm border border-gray-200 p-1 mb-8"> {/* Increased mb-8 */}
+          <button
+            onClick={() => setActiveTab('posts')}
+            className={`px-8 py-3 font-medium text-sm rounded-2xl transition-colors flex-1 text-center ${
+              activeTab === 'posts'
+                ? 'bg-gray-100 text-gray-900 shadow-sm'
+                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            POSTS
+          </button>
+          <button
+            onClick={() => setActiveTab('thoughts')}
+            className={`px-8 py-3 font-medium text-sm rounded-2xl transition-colors flex-1 text-center ${
+              activeTab === 'thoughts'
+                ? 'bg-gray-100 text-gray-900 shadow-sm'
+                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            THOUGHTS
+          </button>
         </div>
 
         {/* Content */}
-        <div className="animate-fadeInUp" style={{ animationDelay: '0.2s' }}>
+        <div className="pb-8">
           {activeTab === 'posts' ? (
             loadingPosts ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-3 gap-4"> {/* Increased gap */}
                 {[1, 2, 3, 4, 5, 6].map(i => (
-                  <div
-                    key={i}
-                    className="aspect-square rounded-2xl bg-gradient-to-br from-blue-200 to-purple-200 dark:from-blue-900 dark:to-purple-900 animate-pulse"
-                    style={{ animationDelay: `${i * 50}ms` }}
-                  />
+                  <div key={i} className="aspect-square bg-gray-200 rounded-2xl animate-pulse" />
                 ))}
               </div>
             ) : mediaPosts.length === 0 ? (
-              <div className="text-center py-16 px-6 bg-white dark:bg-[#0a1628] rounded-3xl border border-purple-100/50 dark:border-purple-900/30 shadow-xl">
-                <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center mx-auto mb-6 shadow-2xl shadow-purple-500/30">
-                  <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="text-center py-16 bg-white rounded-3xl border border-gray-200 shadow-sm">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gray-100 flex items-center justify-center">
+                  <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
                 </div>
-                <h3 className="text-2xl font-bold text-neutral-900 dark:text-white mb-2">No posts yet</h3>
-                <p className="text-neutral-600 dark:text-neutral-400 mb-6">
-                  {isOwner ? 'Share your first moment with images!' : 'No posts with images yet.'}
-                </p>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">No Posts Yet</h3>
+                <p className="text-gray-600 mb-4">When you share photos, they'll appear here.</p>
                 {isOwner && (
-                  <Link
-                    to="/"
-                    className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold shadow-lg hover:shadow-purple-500/50 transition-all duration-300 hover:scale-105 active:scale-95"
-                  >
-                    Create Post
+                  <Link to="/" className="text-sm text-blue-500 hover:text-blue-600 font-medium">
+                    Share your first photo
                   </Link>
                 )}
               </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                {mediaPosts.map((p, index) => (
-                  <Link
-                    key={p._id || p.id}
-                    to={`/post/${p._id || p.id}`}
-                    className="group relative aspect-square rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl hover:shadow-purple-500/30 transition-all duration-300 hover:scale-105 animate-fadeInUp border-2 border-transparent hover:border-purple-400/50"
-                    style={{ animationDelay: `${index * 50}ms` }}
-                    aria-label={p.caption ? p.caption.slice(0, 80) : 'Post'}
-                  >
-                    <img
-                      src={buildUrl(p.imageUrl)}
-                      alt={p.caption ? p.caption.slice(0, 80) : 'Post image'}
-                      className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                    {p.caption && (
-                      <div className="absolute bottom-0 left-0 right-0 p-4 text-white transform translate-y-full group-hover:translate-y-0 transition-transform duration-300">
-                        <p className="text-sm font-medium line-clamp-2">{p.caption}</p>
-                      </div>
-                    )}
-                  </Link>
+              <div className="grid grid-cols-3 gap-4"> {/* Increased gap */}
+                {mediaPosts.map((post, index) => (
+                  <PostGridItem key={post._id || post.id} post={post} index={index} />
                 ))}
               </div>
             )
-          ) : activeTab === 'thoughts' ? (
-            loadingPosts ? (
-              <div className="space-y-4">
-                {[1, 2, 3].map(i => (
-                  <div
-                    key={i}
-                    className="h-32 rounded-2xl bg-gradient-to-br from-blue-200 to-purple-200 dark:from-blue-900 dark:to-purple-900 animate-pulse"
-                    style={{ animationDelay: `${i * 100}ms` }}
-                  />
-                ))}
-              </div>
-            ) : thoughts.length === 0 ? (
-              <div className="text-center py-16 px-6 bg-white dark:bg-[#0a1628] rounded-3xl border border-purple-100/50 dark:border-purple-900/30 shadow-xl">
-                <div className="w-24 h-24 rounded-full bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center mx-auto mb-6 shadow-2xl shadow-purple-500/30">
-                  <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
+          ) : (
+            <div className="max-w-2xl mx-auto">
+              {loadingPosts ? (
+                <div className="space-y-4"> {/* Increased spacing */}
+                  {[1, 2, 3].map(i => (
+                    <div key={i} className="h-20 bg-gray-200 rounded-2xl animate-pulse" />
+                  ))}
                 </div>
-                <h3 className="text-2xl font-bold text-neutral-900 dark:text-white mb-2">No thoughts yet</h3>
-                <p className="text-neutral-600 dark:text-neutral-400 mb-6">
-                  {isOwner ? 'Share your first thought!' : 'No thoughts shared yet.'}
-                </p>
-                {isOwner && (
-                  <Link
-                    to="/"
-                    className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold shadow-lg hover:shadow-purple-500/50 transition-all duration-300 hover:scale-105 active:scale-95"
-                  >
-                    Share Thought
-                  </Link>
-                )}
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {thoughts.map((t, index) => (
-                  <article
-                    key={t._id || t.id}
-                    className="bg-white dark:bg-[#0a1628] rounded-2xl shadow-lg border border-purple-100/50 dark:border-purple-900/30 p-5 hover:shadow-2xl hover:shadow-purple-500/20 transition-all duration-300 hover:scale-[1.02] animate-fadeInUp"
-                    style={{ animationDelay: `${index * 50}ms` }}
-                  >
-                    <div className="flex items-start gap-4">
-                      <div className="shrink-0">
-                        {t.author?.avatarUrl ? (
-                          <img
-                            src={buildUrl(t.author.avatarUrl)}
-                            alt={t.author?.name || 'Author'}
-                            className="w-12 h-12 rounded-full object-cover ring-2 ring-purple-500/30"
-                          />
-                        ) : (
-                          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg ring-2 ring-purple-500/30">
-                            {String(t.author?.name || t.author || '?').charAt(0).toUpperCase()}
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="font-semibold text-neutral-900 dark:text-white select-text">
-                            {t.author?.name || t.author || 'User'}
-                          </span>
-                          <span className="text-xs text-neutral-500 dark:text-neutral-400 select-none">
-                            • {t.createdAt ? new Date(t.createdAt).toLocaleDateString() : ''}
-                          </span>
-                        </div>
-                        <p className="text-neutral-800 dark:text-neutral-200 leading-relaxed select-text">
-                          {t.caption || t.content}
-                        </p>
-                      </div>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            )
-          ) : null}
+              ) : thoughts.length === 0 ? (
+                <div className="text-center py-16 bg-white rounded-3xl border border-gray-200 shadow-sm">
+                  <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gray-100 flex items-center justify-center">
+                    <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No Thoughts Yet</h3>
+                  <p className="text-gray-600 mb-4">Share your thoughts with the community.</p>
+                  {isOwner && (
+                    <Link to="/" className="text-sm text-blue-500 hover:text-blue-600 font-medium">
+                      Share your first thought
+                    </Link>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-4"> {/* Increased spacing */}
+                  {thoughts.map((thought, index) => (
+                    <ThoughtCard key={thought._id || thought.id} thought={thought} index={index} />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

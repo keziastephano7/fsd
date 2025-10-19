@@ -9,7 +9,8 @@ import { AuthContext } from '../AuthContext';
 import { buildUrl } from '../utils/url';
 import TagChip from './TagChip';
 
-export default function PostCard({ post, onUpdate, disableMenu = false }) {
+export default function PostCard({ post, onUpdate, disableMenu = false, isModal, showCommentsDefault = false  }) {
+  // const [showComments, setShowComments] = useState(showCommentsDefault);
   const [likes, setLikes] = useState(Array.isArray(post.likes) ? post.likes.length : post.likes || 0);
   const [liked, setLiked] = useState(false);
   const [showComments, setShowComments] = useState(false);
@@ -23,6 +24,10 @@ export default function PostCard({ post, onUpdate, disableMenu = false }) {
 
   const { user } = useContext(AuthContext);
   const meId = user?.id || user?._id;
+
+  useEffect(() => {
+    if (showCommentsDefault) setShowComments(true);
+  }, [showCommentsDefault]);
 
   useEffect(() => {
     setLiked(post.liked ?? (Array.isArray(post.likes) && post.likes.includes(meId)));
@@ -87,7 +92,8 @@ export default function PostCard({ post, onUpdate, disableMenu = false }) {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0 }}
-        className="bg-white dark:bg-[#191e33] rounded-xl shadow-lg overflow-hidden hover:shadow-purple-600/30 hover:scale-[1.01] transform transition-all duration-250 w-full max-w-sm mx-auto"
+        className={`bg-white dark:bg-[#191e33] rounded-xl shadow-lg overflow-hidden transition-all duration-250 w-full
+          ${isModal ? "max-w-lg mx-auto" : "max-w-sm mx-auto"}`}
       >
         {/* Header */}
         <div className="flex items-center p-3 border-b border-neutral-200 dark:border-[#263054] relative">
