@@ -1,23 +1,10 @@
 import React, { useState, useEffect, useContext, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import API from '../api';
 import { AuthContext } from '../AuthContext';
 
-/**
- * CreatePost (Luna-styled)
- * - Improved UX and accessibility:
- *   - Image preview + remove
- *   - File validation (type + 5MB max)
- *   - Character limit and live count
- *   - Clearer, prominent gradient Post button
- *   - Disabled when nothing to post
- *   - Accessible status messages (aria-live)
- *
- * Props:
- * - onCreated(post) optional callback invoked with created post returned from API
- */
-
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5MB
-const MAX_CHAR = 1000; // comfortable limit for captions
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+const MAX_CHAR = 1000;
 
 export default function CreatePost({ onCreated }) {
   const { user } = useContext(AuthContext);
@@ -28,10 +15,12 @@ export default function CreatePost({ onCreated }) {
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
-
+  const [expanded, setExpanded] = useState(false);
   const previewRef = useRef(null);
+  const formRef = useRef(null);
+  const textareaRef = useRef(null);
 
-  // Clear inputs when user logs out
+  // Reset on user change
   useEffect(() => {
     if (!user) {
       setCaption('');
@@ -39,10 +28,10 @@ export default function CreatePost({ onCreated }) {
       setPreviewUrl('');
       setError('');
       setFieldErrors({});
+      setExpanded(false);
     }
   }, [user]);
 
-  // create object URL for preview and clean up
   useEffect(() => {
     if (file) {
       const url = URL.createObjectURL(file);
@@ -59,6 +48,17 @@ export default function CreatePost({ onCreated }) {
     }
   }, [file]);
 
+  // Scroll textarea into view when expanded (useful in modal with scroll)
+  useEffect(() => {
+    if (expanded && textareaRef.current) {
+      // Timeout ensures it waits for animation/layout
+      setTimeout(() => {
+        textareaRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        textareaRef.current.focus();
+      }, 200);
+    }
+  }, [expanded]);
+
   const handleFileChange = (e) => {
     setError('');
     setFieldErrors({});
@@ -67,18 +67,16 @@ export default function CreatePost({ onCreated }) {
       setFile(null);
       return;
     }
-
     if (!f.type.startsWith('image/')) {
-      setError('Please select an image file (jpg, png, gif).');
+      setError('Please select an image file.');
       return;
     }
-
     if (f.size > MAX_IMAGE_BYTES) {
-      setError('Image too large. Max size is 5MB.');
+      setError('Image too large (max 5MB).');
       return;
     }
-
     setFile(f);
+    setExpanded(true);
   };
 
   const removeImage = () => {
@@ -96,150 +94,179 @@ export default function CreatePost({ onCreated }) {
   };
 
   const submit = async (e) => {
-    e.preventDefault();
+    e?.preventDefault();
     setError('');
     setFieldErrors({});
-
     if (!user) {
       setError('You must be logged in to post.');
       return;
     }
-
     if (!canSubmit()) {
       setError('Write something or attach an image to post.');
       return;
     }
-
     if (caption.length > MAX_CHAR) {
-      setFieldErrors({ caption: `Caption exceeds ${MAX_CHAR} characters` });
+      setFieldErrors({ caption: `Exceeds ${MAX_CHAR} characters` });
       return;
     }
-
     setSubmitting(true);
     try {
       const fd = new FormData();
       fd.append('caption', caption.trim());
       if (file) fd.append('image', file);
-
-      // Let axios set Content-Type for FormData
       const res = await API.post('/posts', fd);
       const created = res.data;
-
-      // Reset local state
       setCaption('');
       removeImage();
-
-      // Notify parent (feed page or create page wrapper)
+      setExpanded(false);
       onCreated && onCreated(created);
     } catch (err) {
       const data = err.response?.data;
       if (data?.errors && Array.isArray(data.errors)) {
         const map = {};
-        data.errors.forEach(x => { if (x.param) map[x.param] = x.msg; });
+        data.errors.forEach(x => {
+          if (x.param) map[x.param] = x.msg;
+        });
         setFieldErrors(map);
       } else {
-        setError(data?.message || 'Error creating post. Try again.');
+        setError(data?.message || 'Error creating post.');
       }
     } finally {
       setSubmitting(false);
     }
   };
 
-  return (
-    <form onSubmit={submit} className="max-w-2xl mx-auto p-4 bg-white dark:bg-[#041028] rounded-2xl shadow-md border border-neutral-100 dark:border-neutral-800" aria-live="polite" noValidate>
-      <div className="flex gap-3">
-        {/* User avatar */}
-        <div className="shrink-0">
-          {user?.avatarUrl ? (
-            <img
-              src={user.avatarUrl}
-              alt={`${user.name || 'User'} avatar`}
-              className="w-11 h-11 rounded-full object-cover ring-1 ring-neutral-100 dark:ring-neutral-800"
-              onError={(e) => { e.currentTarget.style.display = 'none'; }}
-            />
-          ) : (
-            <div className="w-11 h-11 rounded-full bg-gradient-to-br from-[#4f46e5] to-[#7c3aed] flex items-center justify-center text-white font-semibold">
-              {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
-            </div>
-          )}
-        </div>
-
-        <div className="flex-1">
-          <label htmlFor="caption" className="sr-only">Create a post</label>
-          <textarea
-            id="caption"
-            name="caption"
-            placeholder="Share something with Luna..."
-            value={caption}
-            onChange={(e) => setCaption(e.target.value)}
-            rows={3}
-            maxLength={MAX_CHAR}
-            className="w-full px-4 py-3 rounded-xl bg-neutral-50 dark:bg-[#07142a] border border-transparent focus:outline-none focus:ring-2 focus:ring-[#6b46ff] text-neutral-900 dark:text-neutral-100 resize-none placeholder:text-neutral-400"
-            aria-invalid={!!fieldErrors.caption}
-            aria-describedby={fieldErrors.caption ? 'caption-error' : 'caption-help'}
-            data-createpost-input
-          />
-
-          <div className="mt-2 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              {/* File input */}
-              <label htmlFor="post-image" className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-neutral-100 dark:bg-neutral-900 text-sm text-neutral-700 dark:text-neutral-200 cursor-pointer hover:bg-neutral-200 dark:hover:bg-neutral-800">
-                <svg className="w-4 h-4 text-[#6b46ff]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V7M16 3v4M8 3v4M3 11h18" /></svg>
-                <span className="text-xs">Photo</span>
-                <input id="post-image" type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
-              </label>
-
-              {/* optional other actions (tags etc) */}
-              <button type="button" className="hidden md:inline-flex items-center px-3 py-1 rounded-md bg-neutral-100 dark:bg-neutral-900 text-sm text-neutral-700 dark:text-neutral-200">
-                # Tag
-              </button>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <div className="text-xs text-neutral-500 dark:text-neutral-400 mr-2">{caption.length}/{MAX_CHAR}</div>
-
-              <button
-                type="submit"
-                disabled={!canSubmit()}
-                className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-white transition-transform transform hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-[#6b46ff] ${
-                  canSubmit()
-                    ? 'bg-gradient-to-r from-[#4f46e5] to-[#7c3aed] shadow-lg'
-                    : 'opacity-60 cursor-not-allowed bg-neutral-300 dark:bg-neutral-800 text-neutral-400'
-                }`}
-                aria-disabled={!canSubmit()}
-              >
-                {submitting ? (
-                  <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" strokeOpacity="0.25"/><path d="M22 12a10 10 0 00-10-10" stroke="currentColor" strokeWidth="4" strokeLinecap="round"/></svg>
-                ) : null}
-                <span className="text-sm font-medium">{submitting ? 'Posting...' : 'Post'}</span>
-              </button>
-            </div>
+  const Collapsed = () => (
+    <button
+      type="button"
+      onClick={() => setExpanded(true)}
+      className="w-full text-left p-3 rounded-lg bg-neutral-50 dark:bg-[#071424] flex items-center gap-3 border border-purple-100 dark:border-purple-900 hover:border-purple-300 dark:hover:border-purple-700 transition-colors"
+    >
+      <div className="w-10 h-10 rounded-full overflow-hidden bg-white shrink-0">
+        {user?.avatarUrl ? (
+          <img src={user.avatarUrl} alt="avatar" className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-600 to-purple-600 text-white font-bold text-lg select-none">
+            {user?.name?.[0]?.toUpperCase() || 'U'}
           </div>
-
-          {/* Errors and helper text */}
-          <div className="mt-2">
-            {fieldErrors.caption && <p id="caption-error" className="text-sm text-red-500">{fieldErrors.caption}</p>}
-            {error && <p className="text-sm text-red-500">{error}</p>}
-            <p id="caption-help" className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">Be kind — Luna is for ages 12+</p>
-          </div>
-
-          {/* Image preview */}
-          {previewUrl && (
-            <div className="mt-3 relative">
-              <img src={previewUrl} alt="Selected preview" className="w-full max-h-64 object-cover rounded-md border border-neutral-200 dark:border-neutral-800" />
-              <button
-                type="button"
-                onClick={removeImage}
-                className="absolute top-2 right-2 bg-black/60 text-white rounded-full w-8 h-8 flex items-center justify-center hover:bg-black/75"
-                aria-label="Remove image"
-              >
-                ✕
-              </button>
-              <div className="text-xs text-neutral-500 dark:text-neutral-400 mt-1">Preview — {Math.round((file?.size || 0) / 1024)} KB</div>
-            </div>
-          )}
-        </div>
+        )}
       </div>
-    </form>
+      <div className="flex-1 text-sm text-neutral-500 select-none">Create post...</div>
+      <label
+        htmlFor="quick-photo"
+        className="inline-flex items-center px-3 py-1 bg-neutral-100 dark:bg-[#0b1220] rounded cursor-pointer text-xs select-none hover:bg-neutral-200 dark:hover:bg-[#16223d] transition-colors"
+      >
+        Photo
+        <input id="quick-photo" type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
+      </label>
+    </button>
+  );
+
+  return (
+    <div className="w-full max-w-[520px] mx-auto flex flex-col"
+      style={{ maxHeight: '90vh', overflowY: 'auto', WebkitOverflowScrolling: 'touch' }} 
+      ref={formRef}
+    >
+      <AnimatePresence initial={false}>
+        {!expanded ? (
+          <motion.div
+            key="collapsed"
+            initial={{ opacity: 0, height: 72 }}
+            animate={{ opacity: 1, height: 72 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+          >
+            <Collapsed />
+          </motion.div>
+        ) : (
+          <motion.form
+            key="expanded"
+            onSubmit={submit}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 6 }}
+            transition={{ duration: 0.15 }}
+            className="bg-white dark:bg-[#041028] rounded-2xl p-5 border border-purple-100 dark:border-purple-900 shadow flex flex-col"
+            aria-label="Create new post form"
+          >
+            <div className="flex gap-4 flex-shrink-0">
+              <div className="w-12 h-12 rounded-full overflow-hidden shrink-0">
+                {user?.avatarUrl ? (
+                  <img src={user.avatarUrl} alt="avatar" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-600 to-purple-600 text-white font-bold text-lg select-none">
+                    {user?.name?.[0]?.toUpperCase() || 'U'}
+                  </div>
+                )}
+              </div>
+              <textarea
+                ref={textareaRef}
+                value={caption}
+                onChange={e => setCaption(e.target.value)}
+                rows={4}
+                maxLength={MAX_CHAR}
+                placeholder="Share something..."
+                className="flex-grow resize-none p-3 rounded-lg bg-neutral-50 dark:bg-[#071424] border border-transparent focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm placeholder-neutral-500 dark:placeholder-neutral-400"
+                aria-label="Post caption"
+              />
+            </div>
+
+            <div className="mt-4 flex flex-col gap-4 flex-shrink-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <label
+                  htmlFor="image"
+                  className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-neutral-100 dark:bg-[#0b1220] cursor-pointer text-xs select-none hover:bg-neutral-200 dark:hover:bg-[#16223d] transition-colors"
+                >
+                  Photo
+                  <input id="image" type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
+                </label>
+                <div className="text-xs text-neutral-500 dark:text-neutral-400 select-none">
+                  {caption.length}/{MAX_CHAR}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  type="submit"
+                  disabled={!canSubmit()}
+                  className={`px-5 py-2 rounded-full text-white text-sm transition ${
+                    canSubmit() ? 'bg-gradient-to-r from-blue-600 to-purple-600 shadow hover:brightness-110' : 'bg-neutral-300 text-neutral-500 cursor-not-allowed'
+                  }`}
+                >
+                  {submitting ? 'Posting...' : 'Post'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setExpanded(false);
+                    setError('');
+                    setFieldErrors({});
+                  }}
+                  className="px-4 py-2 rounded-md border border-neutral-200 dark:border-purple-900 text-sm hover:bg-neutral-100 dark:hover:bg-[#16223d] transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-2 text-xs text-red-500 select-none" role="alert" aria-live="assertive">
+              {fieldErrors.caption ? fieldErrors.caption : error}
+            </div>
+
+            {previewUrl && (
+              <div className="mt-4 rounded-md overflow-hidden border border-neutral-200 dark:border-purple-900 flex-shrink-0">
+                <img src={previewUrl} alt="preview" className="w-full h-56 object-cover" />
+                <div className="p-2 flex justify-between items-center">
+                  <div className="text-xs text-neutral-500 select-none">Preview — {Math.round((file?.size || 0) / 1024)} KB</div>
+                  <button type="button" onClick={removeImage} className="text-xs text-red-500 hover:underline">
+                    Remove
+                  </button>
+                </div>
+              </div>
+            )}
+          </motion.form>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }

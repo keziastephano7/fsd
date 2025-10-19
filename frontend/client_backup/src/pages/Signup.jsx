@@ -3,13 +3,6 @@ import API from '../api';
 import { useNavigate, Link } from 'react-router-dom';
 import { AuthContext } from '../AuthContext';
 
-/**
- * Signup (Luna)
- * - Premium animated gradient background matching Login
- * - Glass-morphism design with smooth animations
- * - Accessible labels, validation, and clear error states
- */
-
 export default function Signup() {
   const { login } = useContext(AuthContext);
   const [form, setForm] = useState({ name: '', email: '', password: '' });
@@ -18,18 +11,14 @@ export default function Signup() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [mounted, setMounted] = useState(false);
-
   const nameRef = useRef(null);
   const nav = useNavigate();
 
   useEffect(() => {
-    // Clear form when component mounts
     setForm({ name: '', email: '', password: '' });
     setFieldErrors({});
     setFormError('');
     nameRef.current?.focus();
-
-    // Entrance animation
     const t = setTimeout(() => setMounted(true), 20);
     return () => clearTimeout(t);
   }, []);
@@ -87,18 +76,15 @@ export default function Signup() {
 
   return (
     <main className="min-h-screen relative overflow-hidden flex items-center justify-center px-4 py-12">
-      {/* Animated Background - Same as Login */}
+      {/* Animated Background */}
       <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-[#020817] dark:via-[#0a0e27] dark:to-[#0d1117]">
-        {/* Animated gradient orbs */}
-        <div className="absolute top-0 -left-4 w-72 h-72 bg-purple-300 dark:bg-purple-900 rounded-full mix-blend-multiply dark:mix-blend-screen filter blur-xl opacity-70 animate-blob"></div>
-        <div className="absolute top-0 -right-4 w-72 h-72 bg-blue-300 dark:bg-blue-900 rounded-full mix-blend-multiply dark:mix-blend-screen filter blur-xl opacity-70 animate-blob animation-delay-2000"></div>
-        <div className="absolute -bottom-8 left-20 w-72 h-72 bg-pink-300 dark:bg-pink-900 rounded-full mix-blend-multiply dark:mix-blend-screen filter blur-xl opacity-70 animate-blob animation-delay-4000"></div>
-        
-        {/* Gradient mesh overlay */}
-        <div className="absolute inset-0 bg-gradient-to-tr from-blue-500/10 via-purple-500/10 to-pink-500/10 dark:from-blue-500/5 dark:via-purple-500/5 dark:to-pink-500/5"></div>
+        <div className="absolute top-0 -left-4 w-72 h-72 bg-purple-300 dark:bg-purple-900 rounded-full mix-blend-multiply dark:mix-blend-screen filter blur-xl opacity-70 animate-blob" />
+        <div className="absolute top-0 -right-4 w-72 h-72 bg-blue-300 dark:bg-blue-900 rounded-full mix-blend-multiply dark:mix-blend-screen filter blur-xl opacity-70 animate-blob animation-delay-2000" />
+        <div className="absolute -bottom-8 left-20 w-72 h-72 bg-pink-300 dark:bg-pink-900 rounded-full mix-blend-multiply dark:mix-blend-screen filter blur-xl opacity-70 animate-blob animation-delay-4000" />
+        <div className="absolute inset-0 bg-gradient-to-tr from-blue-500/10 via-purple-500/10 to-pink-500/10 dark:from-blue-500/5 dark:via-purple-500/5 dark:to-pink-500/5" />
       </div>
 
-      {/* Floating particles/stars effect */}
+      {/* Floating Particles */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {[...Array(20)].map((_, i) => (
           <div
@@ -108,13 +94,13 @@ export default function Signup() {
               left: `${Math.random() * 100}%`,
               top: `${Math.random() * 100}%`,
               animationDelay: `${Math.random() * 5}s`,
-              animationDuration: `${5 + Math.random() * 10}s`
+              animationDuration: `${5 + Math.random() * 10}s`,
             }}
-          ></div>
+          />
         ))}
       </div>
 
-      {/* Signup Card - Glass morphism design */}
+      {/* Signup Card */}
       <div
         className={`relative w-full max-w-md transform transition-all duration-700 ${
           mounted ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-8 scale-95'
@@ -122,35 +108,24 @@ export default function Signup() {
         role="region"
         aria-labelledby="signup-heading"
       >
-        {/* Glow effect behind card */}
         <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 rounded-3xl blur-lg opacity-30 group-hover:opacity-50 transition duration-1000"></div>
-        
-        {/* Main card */}
+
         <div className="relative bg-white/80 dark:bg-[#0a1628]/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-purple-200/50 dark:border-purple-900/50 p-8 sm:p-10">
-          
-          {/* Header with Luna branding */}
           <header className="mb-8 text-center">
-            {/* Logo/Icon with gradient */}
             <div className="mx-auto mb-5 w-20 h-20 flex items-center justify-center rounded-full bg-gradient-to-br from-blue-500 via-purple-500 to-purple-600 shadow-2xl shadow-purple-500/50 relative group">
-              {/* Animated ring */}
               <div className="absolute inset-0 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 opacity-75 group-hover:scale-110 transition-transform duration-300 animate-pulse"></div>
-              
-              {/* Moon icon */}
               <svg className="w-10 h-10 text-white relative z-10" fill="currentColor" viewBox="0 0 20 20">
                 <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
               </svg>
             </div>
-
             <h1 id="signup-heading" className="text-3xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-purple-700 bg-clip-text text-transparent mb-2">
               Join Luna
             </h1>
             <p className="text-neutral-600 dark:text-neutral-400">Create your account and start connecting</p>
           </header>
 
-          {/* Signup Form */}
           <form onSubmit={handleSubmit} className="space-y-5" noValidate autoComplete="off">
-            
-            {/* Name Field */}
+            {/* Name */}
             <div className="space-y-2">
               <label htmlFor="name" className="block text-sm font-semibold text-neutral-700 dark:text-neutral-200">
                 Full Name
@@ -174,8 +149,8 @@ export default function Signup() {
                   required
                   autoComplete="off"
                   className={`w-full pl-12 pr-4 py-3 rounded-xl border-2 bg-white/50 dark:bg-[#07142a]/50 backdrop-blur-sm text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500 focus:outline-none focus:ring-4 transition-all duration-300 ${
-                    fieldErrors.name 
-                      ? 'border-red-300 dark:border-red-700 focus:border-red-500 focus:ring-red-500/20' 
+                    fieldErrors.name
+                      ? 'border-red-300 dark:border-red-700 focus:border-red-500 focus:ring-red-500/20'
                       : 'border-neutral-200 dark:border-neutral-700 focus:border-purple-500 focus:ring-purple-500/20'
                   }`}
                 />
@@ -190,7 +165,7 @@ export default function Signup() {
               )}
             </div>
 
-            {/* Email Field */}
+            {/* Email */}
             <div className="space-y-2">
               <label htmlFor="email" className="block text-sm font-semibold text-neutral-700 dark:text-neutral-200">
                 Email Address
@@ -214,8 +189,8 @@ export default function Signup() {
                   required
                   autoComplete="off"
                   className={`w-full pl-12 pr-4 py-3 rounded-xl border-2 bg-white/50 dark:bg-[#07142a]/50 backdrop-blur-sm text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500 focus:outline-none focus:ring-4 transition-all duration-300 ${
-                    fieldErrors.email 
-                      ? 'border-red-300 dark:border-red-700 focus:border-red-500 focus:ring-red-500/20' 
+                    fieldErrors.email
+                      ? 'border-red-300 dark:border-red-700 focus:border-red-500 focus:ring-red-500/20'
                       : 'border-neutral-200 dark:border-neutral-700 focus:border-purple-500 focus:ring-purple-500/20'
                   }`}
                 />
@@ -230,7 +205,7 @@ export default function Signup() {
               )}
             </div>
 
-            {/* Password Field */}
+            {/* Password */}
             <div className="space-y-2">
               <label htmlFor="password" className="block text-sm font-semibold text-neutral-700 dark:text-neutral-200">
                 Password
@@ -253,8 +228,8 @@ export default function Signup() {
                   required
                   autoComplete="new-password"
                   className={`w-full pl-12 pr-14 py-3 rounded-xl border-2 bg-white/50 dark:bg-[#07142a]/50 backdrop-blur-sm text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500 focus:outline-none focus:ring-4 transition-all duration-300 ${
-                    fieldErrors.password 
-                      ? 'border-red-300 dark:border-red-700 focus:border-red-500 focus:ring-red-500/20' 
+                    fieldErrors.password
+                      ? 'border-red-300 dark:border-red-700 focus:border-red-500 focus:ring-red-500/20'
                       : 'border-neutral-200 dark:border-neutral-700 focus:border-purple-500 focus:ring-purple-500/20'
                   }`}
                 />
@@ -284,7 +259,7 @@ export default function Signup() {
                   {fieldErrors.password}
                 </p>
               )}
-              <p id="password-hint" className="text-xs text-neutral-500 dark:text-neutral-400 flex items-center gap-1">
+              <p id="password-hint" className="text-xs text-neutral-500 dark:text-neutral-400 flex items-center gap-1 select-none">
                 <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                 </svg>
@@ -297,17 +272,17 @@ export default function Signup() {
               <button
                 type="submit"
                 disabled={loading}
-                className="relative w-full group overflow-hidden rounded-xl bg-gradient-to-r from-blue-600 via-purple-600 to-purple-700 p-[2px] transition-all duration-300 hover:shadow-2xl hover:shadow-purple-500/50 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:shadow-none"
+                className="relative w-full group overflow-hidden rounded-xl bg-gradient-to-r from-blue-600 via-purple-600 to-purple-700 p-[2px] transition-all duration-300 hover:shadow-2xl hover:shadow-purple-500/50 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:shadow-none focus:outline-none focus:ring-2 focus:ring-purple-500"
               >
                 <div className="relative px-6 py-3.5 rounded-xl bg-gradient-to-r from-blue-600 via-purple-600 to-purple-700 group-hover:from-blue-500 group-hover:via-purple-500 group-hover:to-purple-600 transition-all duration-300">
                   {/* Shine effect */}
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
-                  
-                  <div className="relative flex items-center justify-center gap-2 text-white font-semibold">
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 pointer-events-none"></div>
+
+                  <div className="relative flex items-center justify-center gap-2 text-white font-semibold select-none">
                     {loading && (
                       <svg className="w-5 h-5 animate-spin" viewBox="0 0 24 24" fill="none">
-                        <circle cx="12" cy="12" r="10" stroke="white" strokeWidth="3" strokeOpacity="0.25"/>
-                        <path d="M22 12a10 10 0 00-10-10" stroke="white" strokeWidth="3" strokeLinecap="round"/>
+                        <circle cx="12" cy="12" r="10" stroke="white" strokeWidth="3" strokeOpacity="0.25" />
+                        <path d="M22 12a10 10 0 00-10-10" stroke="white" strokeWidth="3" strokeLinecap="round" />
                       </svg>
                     )}
                     <span>{loading ? 'Creating account...' : 'Create your account'}</span>
@@ -317,11 +292,11 @@ export default function Signup() {
             </div>
           </form>
 
-          {/* Form Error Message */}
+          {/* Form Error */}
           <div id="signup-status" aria-live="polite" className="min-h-[1.5rem] mt-4">
             {formError && (
-              <div className="p-3 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 animate-fadeIn">
-                <p className="text-sm text-red-600 dark:text-red-400 flex items-center gap-2">
+              <div className="p-3 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 animate-fadeIn" role="alert">
+                <p className="text-sm text-red-600 dark:text-red-400 flex items-center gap-2 select-none">
                   <svg className="w-5 h-5 shrink-0" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                   </svg>
@@ -331,12 +306,12 @@ export default function Signup() {
             )}
           </div>
 
-          {/* Login link */}
-          <div className="mt-6 text-center">
+          {/* Sign in link */}
+          <div className="mt-6 text-center select-none">
             <p className="text-neutral-600 dark:text-neutral-400">
               Already have an account?{' '}
-              <Link 
-                to="/login" 
+              <Link
+                to="/login"
                 className="font-semibold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent hover:from-blue-500 hover:to-purple-500 transition-all duration-300"
               >
                 Sign in
@@ -344,12 +319,12 @@ export default function Signup() {
             </p>
           </div>
 
-          {/* Terms notice (optional) */}
-          <div className="mt-6 pt-6 border-t border-neutral-200 dark:border-neutral-800">
+          {/* Terms notice */}
+          <div className="mt-6 pt-6 border-t border-neutral-200 dark:border-neutral-800 select-none">
             <p className="text-xs text-center text-neutral-500 dark:text-neutral-400 leading-relaxed">
-              By creating an account, you agree to Luna's{' '}
-              <span className="text-purple-600 dark:text-purple-400 hover:underline cursor-pointer">Terms of Service</span>
-              {' '}and{' '}
+              By creating an account, you agree to Luna&apos;s{' '}
+              <span className="text-purple-600 dark:text-purple-400 hover:underline cursor-pointer">Terms of Service</span>{' '}
+              and{' '}
               <span className="text-purple-600 dark:text-purple-400 hover:underline cursor-pointer">Privacy Policy</span>
             </p>
           </div>

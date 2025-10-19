@@ -1,7 +1,3 @@
-// small helper to build correct server-side URLs for images and other assets
-// Uses the axios API instance baseURL (from src/api.js) if available.
-// Falls back to REACT_APP_API_URL or window.location.origin.
-
 import API from '../api';
 
 export function getServerBase() {
@@ -25,7 +21,6 @@ export function buildUrl(path) {
   if (!path) return null;
   if (/^https?:\/\//i.test(path) || path.startsWith('//')) return path;
   const base = getServerBase();
-  // ensure single slash between base and path
   const separator = path.startsWith('/') ? '' : '/';
   return `${base}${separator}${path}`;
 }

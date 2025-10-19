@@ -3,15 +3,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import API from '../api';
 import { buildUrl } from '../utils/url';
 
-/**
- * CommentList - Ultra Premium Luna Design
- * - Beautiful card-based layout
- * - Smooth animations for each comment
- * - Avatar support with fallback
- * - Elite spacing and typography
- * - Professional delete confirmation
- */
-
 export default function CommentList({ postId, initial = [], onRemoved }) {
   const [comments, setComments] = useState(initial);
   const [loading, setLoading] = useState(!initial.length);
@@ -29,13 +20,11 @@ export default function CommentList({ postId, initial = [], onRemoved }) {
     }
   };
 
-  useEffect(() => { 
-    load(); 
-  }, [postId]);
+  useEffect(() => { load(); }, [postId]);
 
   const remove = async (commentId) => {
     if (!window.confirm('Delete this comment? This action cannot be undone.')) return;
-    
+
     setDeletingId(commentId);
     try {
       await API.delete(`/posts/${postId}/comments/${commentId}`);
@@ -49,17 +38,16 @@ export default function CommentList({ postId, initial = [], onRemoved }) {
     }
   };
 
-  // Get current user from localStorage
-  const currentUserId = JSON.parse(localStorage.getItem('user') || '{}').id 
-                        || JSON.parse(localStorage.getItem('user') || '{}')._id;
+  // Current user from local storage
+  const currentUserId = JSON.parse(localStorage.getItem('user') || '{}').id
+    || JSON.parse(localStorage.getItem('user') || '{}')._id;
 
-  // Loading state with skeleton
   if (loading) {
     return (
       <div className="space-y-3 mt-6">
         {[1, 2, 3].map(i => (
-          <div 
-            key={i} 
+          <div
+            key={i}
             className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-neutral-100 to-neutral-200 dark:from-neutral-800 dark:to-neutral-900 animate-pulse"
             style={{ animationDelay: `${i * 100}ms` }}
           >
@@ -77,7 +65,6 @@ export default function CommentList({ postId, initial = [], onRemoved }) {
     );
   }
 
-  // Empty state with engaging design
   if (!comments.length) {
     return (
       <motion.div
@@ -87,7 +74,8 @@ export default function CommentList({ postId, initial = [], onRemoved }) {
       >
         <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
           <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+              d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
           </svg>
         </div>
         <h3 className="text-lg font-semibold text-neutral-900 dark:text-white mb-2">
@@ -100,14 +88,15 @@ export default function CommentList({ postId, initial = [], onRemoved }) {
     );
   }
 
-  // Comments list with animations
   return (
     <div className="mt-6">
       {/* Header */}
       <div className="flex items-center gap-3 mb-5">
-        <h3 className="text-sm font-semibold text-neutral-700 dark:text-neutral-300 flex items-center gap-2">
+        <h3 className="text-sm font-semibold text-neutral-700 dark:text-neutral-300 flex items-center gap-2 select-none">
           <svg className="w-4 h-4 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clipRule="evenodd" />
+            <path fillRule="evenodd"
+              d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z"
+              clipRule="evenodd" />
           </svg>
           {comments.length} {comments.length === 1 ? 'Comment' : 'Comments'}
         </h3>
@@ -140,7 +129,7 @@ export default function CommentList({ postId, initial = [], onRemoved }) {
                   transition-all duration-300
                   ${isDeleting ? 'opacity-50 pointer-events-none' : ''}
                 `}>
-                  
+
                   {/* Comment content */}
                   <div className="flex items-start gap-3 sm:gap-4">
                     {/* Avatar */}
@@ -150,9 +139,10 @@ export default function CommentList({ postId, initial = [], onRemoved }) {
                           src={buildUrl(comment.author.avatarUrl)}
                           alt={comment.author?.name || 'User'}
                           className="w-10 h-10 sm:w-12 sm:h-12 rounded-full object-cover ring-2 ring-purple-500/30"
+                          loading="lazy"
                         />
                       ) : (
-                        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg ring-2 ring-purple-500/30">
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg ring-2 ring-purple-500/30 select-none">
                           {(comment.author?.name || 'U').charAt(0).toUpperCase()}
                         </div>
                       )}
@@ -163,15 +153,16 @@ export default function CommentList({ postId, initial = [], onRemoved }) {
                       {/* Author and timestamp */}
                       <div className="flex items-start justify-between gap-3 mb-2">
                         <div className="flex-1 min-w-0">
-                          <h4 className="font-semibold text-neutral-900 dark:text-white text-sm sm:text-base truncate">
+                          <h4 className="font-semibold text-neutral-900 dark:text-white text-sm sm:text-base truncate select-text">
                             {comment.author?.name || 'Anonymous User'}
                           </h4>
-                          <p className="text-xs text-neutral-500 dark:text-neutral-400 flex items-center gap-1.5 mt-0.5">
+                          <p className="text-xs text-neutral-500 dark:text-neutral-400 flex items-center gap-1.5 mt-0.5 select-none">
                             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
-                            {new Date(comment.createdAt).toLocaleDateString('en-US', { 
-                              month: 'short', 
+                            {new Date(comment.createdAt).toLocaleDateString('en-US', {
+                              month: 'short',
                               day: 'numeric',
                               hour: 'numeric',
                               minute: '2-digit'
@@ -179,7 +170,7 @@ export default function CommentList({ postId, initial = [], onRemoved }) {
                           </p>
                         </div>
 
-                        {/* Delete button (only for comment owner) */}
+                        {/* Delete button */}
                         {isOwner && (
                           <motion.button
                             whileHover={{ scale: 1.05 }}
@@ -188,15 +179,17 @@ export default function CommentList({ postId, initial = [], onRemoved }) {
                             disabled={isDeleting}
                             className="shrink-0 p-2 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors opacity-0 group-hover:opacity-100"
                             title="Delete comment"
+                            aria-label="Delete comment"
                           >
                             {isDeleting ? (
                               <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
-                                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25"/>
-                                <path d="M22 12a10 10 0 00-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
+                                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
+                                <path d="M22 12a10 10 0 00-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
                               </svg>
                             ) : (
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                               </svg>
                             )}
                           </motion.button>
@@ -204,7 +197,7 @@ export default function CommentList({ postId, initial = [], onRemoved }) {
                       </div>
 
                       {/* Comment text */}
-                      <p className="text-sm sm:text-base text-neutral-700 dark:text-neutral-300 leading-relaxed whitespace-pre-wrap break-words">
+                      <p className="text-sm sm:text-base text-neutral-700 dark:text-neutral-300 leading-relaxed whitespace-pre-wrap break-words select-text">
                         {comment.text}
                       </p>
                     </div>
