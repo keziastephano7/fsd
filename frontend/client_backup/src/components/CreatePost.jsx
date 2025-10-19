@@ -20,10 +20,12 @@ export default function CreatePost({ onCreated }) {
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
   const [dragActive, setDragActive] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const previewRef = useRef(null);
   const tagInputRef = useRef(null);
   const fileInputRef = useRef(null);
+  const textareaRef = useRef(null);
 
   useEffect(() => {
     if (file) {
@@ -50,6 +52,7 @@ export default function CreatePost({ onCreated }) {
       setTagInput('');
       setError('');
       setFieldErrors({});
+      setIsExpanded(false);
     }
   }, [user]);
 
@@ -89,6 +92,7 @@ export default function CreatePost({ onCreated }) {
       return;
     }
     setFile(f);
+    setIsExpanded(true);
   };
 
   const handleDrag = (e) => {
@@ -110,6 +114,7 @@ export default function CreatePost({ onCreated }) {
       if (f.type.startsWith('image/')) {
         if (f.size <= MAX_IMAGE_BYTES) {
           setFile(f);
+          setIsExpanded(true);
         } else {
           setError('Image is too large (max 5 MB).');
         }
@@ -184,6 +189,7 @@ export default function CreatePost({ onCreated }) {
       setTagInput('');
       setError('');
       setFieldErrors({});
+      setIsExpanded(false);
     } catch (err) {
       const data = err.response?.data;
       if (data?.errors && Array.isArray(data.errors)) {
@@ -200,66 +206,94 @@ export default function CreatePost({ onCreated }) {
 
   if (!user) {
     return (
-      <div className="max-w-xl mx-auto p-4 rounded-2xl bg-gradient-to-br from-blue-50/50 to-purple-50/50 dark:from-blue-950/20 dark:to-purple-950/20 border border-dashed border-purple-200 dark:border-purple-800/50 text-center select-none shadow">
-        <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow">
-          <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="max-w-2xl mx-auto p-6 rounded-3xl bg-gradient-to-br from-blue-50 to-purple-50 dark:from-gray-800 dark:to-gray-900 border-2 border-dashed border-blue-200 dark:border-gray-600 text-center shadow-lg"
+      >
+        <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-xl">
+          <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
           </svg>
         </div>
-        <h3 className="text-base font-semibold text-neutral-900 dark:text-white mb-1">Ready to share?</h3>
-        <p className="text-xs text-neutral-600 dark:text-neutral-400">Sign in to create and share your posts with Luna</p>
-      </div>
+        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Ready to share?</h3>
+        <p className="text-gray-600 dark:text-gray-400 mb-4">Sign in to create and share your posts with the community</p>
+        <div className="w-12 h-1 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full mx-auto"></div>
+      </motion.div>
     );
   }
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 14 }}
+      initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="max-w-xl mx-auto relative"
+      className="max-w-2xl mx-auto relative"
     >
-      <form
+      <motion.form
         onSubmit={submit}
-        className="relative bg-white dark:bg-[#10172a] rounded-2xl shadow-xl border border-purple-200/50 dark:border-purple-900/40 overflow-hidden"
+        className={`relative bg-white dark:bg-gray-900 rounded-3xl shadow-2xl border-2 transition-all duration-500 overflow-hidden ${
+          isExpanded || caption || file
+            ? 'border-blue-200 dark:border-blue-800 shadow-2xl'
+            : 'border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-700'
+        }`}
         onDragEnter={handleDrag}
         onDragLeave={handleDrag}
         onDragOver={handleDrag}
         onDrop={handleDrop}
         noValidate
         aria-label="Create new post form"
+        layout
       >
+        {/* Animated background gradient */}
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-purple-500/5 to-pink-500/5 opacity-0 hover:opacity-100 transition-opacity duration-500" />
+        
         {/* Header */}
-        <div className="p-3 sm:p-4 border-b border-neutral-100 dark:border-neutral-800/50 flex items-center gap-3">
-          <div className="shrink-0">
+        <motion.div 
+          className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center gap-4 relative"
+          layout
+        >
+          <div className="relative">
             {user?.avatarUrl ? (
               <img
                 src={buildUrl(user.avatarUrl)}
                 alt={user.name}
-                className="w-10 h-10 rounded-full object-cover ring-2 ring-purple-400/30 shadow"
+                className="w-12 h-12 rounded-2xl object-cover ring-2 ring-blue-500/30 shadow-lg"
                 loading="lazy"
               />
             ) : (
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-base ring-2 ring-purple-400/30 shadow select-none">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg ring-2 ring-blue-500/30 shadow-lg">
                 {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
               </div>
             )}
+            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white dark:border-gray-900"></div>
           </div>
           <div className="flex-1">
-            <h2 className="font-semibold text-neutral-900 dark:text-white text-sm flex items-center gap-2 select-none">
+            <motion.h2 
+              className="font-bold text-gray-900 dark:text-white text-lg flex items-center gap-2"
+              layout
+            >
               <span>Create Post</span>
-              <span className="w-2 h-2 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 animate-pulse"></span>
-            </h2>
-            <p className="text-xs text-neutral-600 dark:text-neutral-400 select-none">
-              Share with {user.name}
+              <motion.span 
+                className="w-2 h-2 rounded-full bg-gradient-to-r from-blue-500 to-purple-600"
+                animate={{ scale: [1, 1.2, 1] }}
+                transition={{ duration: 2, repeat: Infinity }}
+              />
+            </motion.h2>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Share with your community
             </p>
           </div>
-        </div>
+        </motion.div>
 
         {/* Main Content */}
-        <div className="p-3 sm:p-4 space-y-3">
+        <motion.div 
+          className="p-6 space-y-4 relative"
+          layout
+        >
           {/* Caption Textarea */}
-          <div className="space-y-1">
+          <motion.div className="space-y-2" layout>
             <textarea
+              ref={textareaRef}
               id="caption"
               name="caption"
               placeholder="What's on your mind? ✨"
@@ -268,152 +302,204 @@ export default function CreatePost({ onCreated }) {
                 setCaption(e.target.value);
                 setError('');
                 setFieldErrors({});
+                if (e.target.value && !isExpanded) {
+                  setIsExpanded(true);
+                }
               }}
+              onFocus={() => setIsExpanded(true)}
               rows={3}
               maxLength={MAX_CHAR}
-              className="w-full px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-xl bg-neutral-50 dark:bg-[#151d34] border border-transparent focus:border-purple-500 focus:ring-2 focus:ring-purple-500/10 text-neutral-900 dark:text-neutral-100 text-sm placeholder:text-neutral-400 dark:placeholder:text-neutral-500 transition"
+              className="w-full px-4 py-3 rounded-2xl bg-gray-50 dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 text-gray-900 dark:text-white text-[15px] placeholder:text-gray-400 dark:placeholder:text-gray-500 transition-all duration-300 resize-none font-medium"
               aria-invalid={fieldErrors.caption ? "true" : "false"}
               aria-describedby="caption-error"
             />
-            <div className="flex justify-between items-center text-xs mt-0.5">
-              <span className="text-neutral-500 dark:text-neutral-400 select-none">
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                <svg className="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M17.707 9.293a1 1 0 010 1.414l-7 7a1 1 0 01-1.414 0l-7-7A.997.997 0 012 10V5a3 3 0 013-3h5c.256 0 .512.098.707.293l7 7zM5 6a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                </svg>
                 #hashtags supported
               </span>
-              <span className={`font-medium select-none ${caption.length > MAX_CHAR * 0.9 ? 'text-red-500' : 'text-neutral-500 dark:text-neutral-400'}`}>
+              <span className={`font-semibold ${caption.length > MAX_CHAR * 0.9 ? 'text-red-500' : 'text-gray-500 dark:text-gray-400'}`}>
                 {caption.length}/{MAX_CHAR}
               </span>
             </div>
-          </div>
+          </motion.div>
 
           {/* Tags Section */}
-          <div className="space-y-1.5">
-            <h3 className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 flex items-center gap-1 select-none">
-              <svg className="w-3.5 h-3.5 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M17.707 9.293a1 1 0 010 1.414l-7 7a1 1 0 01-1.414 0l-7-7A.997.997 0 012 10V5a3 3 0 013-3h5c.256 0 .512.098.707.293l7 7zM5 6a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-              </svg>
-              Tags
-            </h3>
-            {tags.length > 0 && (
-              <div className="flex flex-wrap gap-1.5" role="list" aria-label="Selected tags">
-                {tags.map(t => (
-                  <motion.span
-                    key={t}
-                    initial={{ scale: 0, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gradient-to-r from-blue-100 to-purple-100 dark:from-blue-950/50 dark:to-purple-950/50 border border-purple-200 dark:border-purple-800/50 text-xs"
-                    role="listitem"
+          <AnimatePresence>
+            {(isExpanded || tags.length > 0) && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="space-y-2 overflow-hidden"
+              >
+                <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                  <svg className="w-4 h-4 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M17.707 9.293a1 1 0 010 1.414l-7 7a1 1 0 01-1.414 0l-7-7A.997.997 0 012 10V5a3 3 0 013-3h5c.256 0 .512.098.707.293l7 7zM5 6a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                  </svg>
+                  Tags
+                </h3>
+                {tags.length > 0 && (
+                  <div className="flex flex-wrap gap-2" role="list" aria-label="Selected tags">
+                    {tags.map(t => (
+                      <motion.span
+                        key={t}
+                        initial={{ scale: 0, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        exit={{ scale: 0, opacity: 0 }}
+                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gradient-to-r from-blue-100 to-purple-100 dark:from-blue-900/30 dark:to-purple-900/30 border border-blue-200 dark:border-blue-800 text-sm shadow-sm"
+                        role="listitem"
+                      >
+                        <span className="text-blue-700 dark:text-blue-300 font-medium">#{t}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeTag(t)}
+                          className="text-blue-500 hover:text-blue-700 transition-colors focus:outline-none focus:ring-1 focus:ring-blue-300 rounded"
+                          aria-label={`Remove tag ${t}`}
+                        >
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </motion.span>
+                    ))}
+                  </div>
+                )}
+                <div className="flex gap-2">
+                  <input
+                    ref={tagInputRef}
+                    value={tagInput}
+                    onChange={e => setTagInput(e.target.value)}
+                    onKeyDown={handleTagKeyDown}
+                    placeholder="Add tags..."
+                    className="flex-1 px-3 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 text-sm transition"
+                    aria-label="Add tags"
+                  />
+                  <motion.button
+                    type="button"
+                    onClick={() => {
+                      if (tagInput.trim()) addTag(tagInput);
+                      tagInputRef.current?.focus();
+                    }}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="px-4 py-2 rounded-xl bg-blue-500 hover:bg-blue-600 text-white font-semibold text-sm shadow-lg transition-all"
+                    aria-label="Add tag"
                   >
-                    <span className="text-purple-700 dark:text-purple-300 select-none">#{t}</span>
-                    <button
-                      type="button"
-                      onClick={() => removeTag(t)}
-                      className="text-purple-500 hover:text-purple-700 transition-colors focus:outline-none focus:ring-1 focus:ring-purple-300 rounded"
-                      aria-label={`Remove tag ${t}`}
-                    >
-                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </motion.span>
-                ))}
-              </div>
+                    Add
+                  </motion.button>
+                </div>
+              </motion.div>
             )}
-            <div className="flex gap-1.5">
-              <input
-                ref={tagInputRef}
-                value={tagInput}
-                onChange={e => setTagInput(e.target.value)}
-                onKeyDown={handleTagKeyDown}
-                placeholder="Add tags"
-                className="flex-1 px-3 py-1.5 rounded-lg bg-neutral-100 dark:bg-neutral-800 border border-transparent focus:border-purple-500 focus:ring-1 focus:ring-purple-500/15 text-xs transition"
-                aria-label="Add tags"
-              />
-              <button
-                type="button"
-                onClick={() => {
-                  if (tagInput.trim()) addTag(tagInput);
-                  tagInputRef.current?.focus();
-                }}
-                className="px-2.5 py-1.5 rounded-lg bg-purple-100 dark:bg-purple-950/30 hover:bg-purple-200 dark:hover:bg-purple-900/50 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800/50 font-medium text-xs focus:outline-none focus:ring-1 focus:ring-purple-300 transition"
-                aria-label="Add tag"
-              >+
-              </button>
-            </div>
-          </div>
+          </AnimatePresence>
 
           {/* Image Upload */}
-          <div>
-            {previewUrl ? (
-              <div className="relative group">
-                <img
-                  src={previewUrl}
-                  alt="Post preview"
-                  className="w-full max-h-56 object-cover rounded-xl border border-neutral-200 dark:border-neutral-700 shadow"
-                  loading="lazy"
-                />
-                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 rounded-xl transition-opacity flex items-center justify-center">
-                  <button
-                    type="button"
-                    onClick={removeImage}
-                    className="p-2 bg-red-500 hover:bg-red-600 text-white rounded-full shadow transition hover:scale-110 focus:outline-none focus:ring-1 focus:ring-red-300"
-                    aria-label="Remove image"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
-                </div>
-                <div className="absolute bottom-2 left-2 px-2 py-0.5 bg-black/70 backdrop-blur-sm text-white text-[10px] rounded select-none">
-                  {file ? `${Math.round(file.size / 1024)} KB` : ''}
-                </div>
-              </div>
-            ) : (
-              <div
-                className={`relative border border-dashed rounded-xl p-5 text-center transition cursor-pointer select-none ${
-                  dragActive
-                    ? 'border-purple-400 bg-purple-50 dark:bg-purple-950/30'
-                    : 'border-neutral-300 dark:border-neutral-700 hover:border-purple-400 dark:hover:border-purple-600'
-                }`}
+          <AnimatePresence>
+            {(isExpanded || file) && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="overflow-hidden"
               >
-                <input
-                  ref={fileInputRef}
-                  id="post-image"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileChange}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                  aria-label="Upload image"
-                />
-                <div className="pointer-events-none">
-                  <div className="w-8 h-8 mx-auto mb-2.5 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow">
-                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                  </div>
-                  <h3 className="text-sm font-semibold text-neutral-900 dark:text-white mb-1">
-                    {dragActive ? 'Drop your image here' : 'Add a photo'}
-                  </h3>
-                  <p className="text-xs text-neutral-600 dark:text-neutral-400 mb-1.5">Drag & drop or click to upload</p>
-                  <p className="text-[10px] text-neutral-500">PNG, JPG up to 5MB</p>
-                </div>
-              </div>
+                {previewUrl ? (
+                  <motion.div 
+                    className="relative group rounded-2xl overflow-hidden shadow-lg"
+                    initial={{ scale: 0.9, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                  >
+                    <img
+                      src={previewUrl}
+                      alt="Post preview"
+                      className="w-full max-h-80 object-cover rounded-2xl"
+                      loading="lazy"
+                    />
+                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+                      <motion.button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                        className="p-3 bg-blue-500 hover:bg-blue-600 text-white rounded-2xl shadow-lg transition-all"
+                        aria-label="Change image"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                      </motion.button>
+                      <motion.button
+                        type="button"
+                        onClick={removeImage}
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                        className="p-3 bg-red-500 hover:bg-red-600 text-white rounded-2xl shadow-lg transition-all"
+                        aria-label="Remove image"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </motion.button>
+                    </div>
+                    <div className="absolute bottom-3 left-3 px-3 py-1 bg-black/70 backdrop-blur-sm text-white text-xs rounded-xl">
+                      {file ? `${Math.round(file.size / 1024)} KB` : ''}
+                    </div>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    initial={{ scale: 0.9, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    className={`relative border-2 border-dashed rounded-2xl p-8 text-center transition-all cursor-pointer group ${
+                      dragActive
+                        ? 'border-blue-400 bg-blue-50 dark:bg-blue-900/20 scale-105'
+                        : 'border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-600 hover:bg-blue-50/50 dark:hover:bg-blue-900/10'
+                    }`}
+                  >
+                    <input
+                      ref={fileInputRef}
+                      id="post-image"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileChange}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      aria-label="Upload image"
+                    />
+                    <div className="pointer-events-none">
+                      <motion.div 
+                        className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-xl group-hover:scale-110 transition-transform"
+                        whileHover={{ rotate: 5 }}
+                      >
+                        <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                      </motion.div>
+                      <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
+                        {dragActive ? 'Drop your image here' : 'Add a photo'}
+                      </h3>
+                      <p className="text-gray-600 dark:text-gray-400 mb-3">Drag & drop or click to upload</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">PNG, JPG up to 5MB</p>
+                    </div>
+                  </motion.div>
+                )}
+              </motion.div>
             )}
-          </div>
+          </AnimatePresence>
 
           {/* Error Messages */}
           <AnimatePresence>
             {(error || fieldErrors.caption) && (
               <motion.div
-                initial={{ opacity: 0, y: -7 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -7 }}
-                className="p-2 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/30"
+                initial={{ opacity: 0, y: -10, height: 0 }}
+                animate={{ opacity: 1, y: 0, height: 'auto' }}
+                exit={{ opacity: 0, y: -10, height: 0 }}
+                className="p-4 rounded-2xl bg-red-50 dark:bg-red-900/30 border-2 border-red-200 dark:border-red-800"
                 role="alert"
                 aria-live="assertive"
                 id="caption-error"
               >
-                <p className="text-xs text-red-600 dark:text-red-400 flex items-center gap-1">
-                  <svg className="w-3 h-3 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <p className="text-sm text-red-700 dark:text-red-300 flex items-center gap-2 font-medium">
+                  <svg className="w-5 h-5 shrink-0" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                   </svg>
                   {fieldErrors.caption || error}
@@ -421,43 +507,84 @@ export default function CreatePost({ onCreated }) {
               </motion.div>
             )}
           </AnimatePresence>
-        </div>
+        </motion.div>
 
         {/* Footer */}
-        <div className="px-3 sm:px-4 py-2 bg-neutral-50 dark:bg-[#161d37] border-t border-neutral-100 dark:border-neutral-800/50">
-          <div className="flex items-center justify-end gap-3">
-            <motion.button
-              whileHover={canSubmit() ? { scale: 1.04 } : {}}
-              whileTap={canSubmit() ? { scale: 0.98 } : {}}
-              type="submit"
-              disabled={!canSubmit()}
-              className={`px-4 py-2 rounded-lg font-semibold text-xs shadow transition-all ${
-                canSubmit()
-                  ? 'bg-gradient-to-r from-blue-600 via-purple-600 to-purple-700 text-white hover:shadow-purple-500/30 focus:outline-none focus:ring-2 focus:ring-purple-400'
-                  : 'bg-neutral-300 dark:bg-neutral-800 text-neutral-500 cursor-not-allowed'
-              }`}
-              aria-disabled={!canSubmit()}
+        <AnimatePresence>
+          {(isExpanded || caption || file) && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="px-6 py-4 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-100 dark:border-gray-700 overflow-hidden"
             >
-              {loading ? (
-                <>
-                  <svg className="w-3.5 h-3.5 animate-spin inline mr-1" viewBox="0 0 24 24" fill="none">
-                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2.5" strokeOpacity="0.22" />
-                    <path d="M22 12a10 10 0 00-10-10" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-                  </svg>
-                  Publishing...
-                </>
-              ) : (
-                <>
-                  <svg className="w-3.5 h-3.5 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                  </svg>
-                  Share Post
-                </>
-              )}
-            </motion.button>
-          </div>
-        </div>
-      </form>
+              <div className="flex items-center justify-between gap-4">
+                <motion.button
+                  type="button"
+                  onClick={() => {
+                    setIsExpanded(false);
+                    setCaption('');
+                    removeImage();
+                    setTags([]);
+                    setError('');
+                  }}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="px-6 py-3 rounded-xl bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-semibold hover:bg-gray-300 dark:hover:bg-gray-600 transition-all shadow-sm"
+                >
+                  Cancel
+                </motion.button>
+                
+                <motion.button
+                  whileHover={canSubmit() ? { 
+                    scale: 1.05,
+                    boxShadow: "0 10px 30px -10px rgba(59, 130, 246, 0.5)"
+                  } : {}}
+                  whileTap={canSubmit() ? { scale: 0.95 } : {}}
+                  type="submit"
+                  disabled={!canSubmit()}
+                  className={`relative overflow-hidden px-8 py-3 rounded-xl font-bold text-white shadow-lg transition-all ${
+                    canSubmit()
+                      ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500'
+                      : 'bg-gray-400 cursor-not-allowed'
+                  }`}
+                  aria-disabled={!canSubmit()}
+                >
+                  {/* Shimmer effect */}
+                  {canSubmit() && (
+                    <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/30 to-transparent group-hover:translate-x-full transition-transform duration-700" />
+                  )}
+                  
+                  <span className="relative flex items-center gap-2">
+                    {loading ? (
+                      <>
+                        <motion.svg 
+                          animate={{ rotate: 360 }}
+                          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                          className="w-5 h-5" 
+                          viewBox="0 0 24 24" 
+                          fill="none"
+                        >
+                          <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
+                          <path d="M22 12a10 10 0 00-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                        </motion.svg>
+                        Publishing...
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                        Share Post
+                      </>
+                    )}
+                  </span>
+                </motion.button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.form>
     </motion.div>
   );
 }

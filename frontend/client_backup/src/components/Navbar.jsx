@@ -1,4 +1,4 @@
-import React, { useContext, useState, useEffect } from 'react';
+import React, { useContext, useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -7,26 +7,49 @@ import { buildUrl } from '../utils/url';
 import SearchBar from './SearchBar';
 import CreatePost from './CreatePost';
 
-// UserAvatar reused
-function UserAvatar({ user }) {
+// Enhanced UserAvatar with better loading states
+function UserAvatar({ user, size = "md" }) {
   const fallbackAvatar = '/images/default-avatar.png';
   const avatarSrc = buildUrl(user?.avatarUrl) || fallbackAvatar;
   const [src, setSrc] = useState(avatarSrc);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  const sizeClasses = {
+    sm: "w-8 h-8",
+    md: "w-10 h-10",
+    lg: "w-14 h-14"
+  };
+
+  const ringClasses = {
+    sm: "ring-1 ring-purple-500/30",
+    md: "ring-2 ring-purple-500/30",
+    lg: "ring-3 ring-purple-500/30"
+  };
+
   useEffect(() => {
     setSrc(buildUrl(user?.avatarUrl) || fallbackAvatar);
+    setIsLoading(true);
   }, [user]);
+
   return (
-    <img
-      src={src}
-      alt={user.name}
-      className="w-12 h-12 rounded-full shadow-xl ring-4 ring-purple-500/70 object-cover"
-      loading="lazy"
-      onError={() => setSrc(fallbackAvatar)}
-      style={{
-        borderRadius: '50%',
-        boxShadow: '0 6px 18px 0 rgba(120, 40, 220, 0.10)',
-      }}
-    />
+    <div className={`relative ${sizeClasses[size]} rounded-full`}>
+      {isLoading && (
+        <div className="absolute inset-0 bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-600 rounded-full animate-pulse" />
+      )}
+      <img
+        src={src}
+        alt={user?.name || 'User avatar'}
+        className={`w-full h-full rounded-full object-cover transition-all duration-300 ${
+          isLoading ? 'opacity-0' : 'opacity-100'
+        } ${ringClasses[size]} hover:ring-purple-500/60 shadow-md`}
+        loading="lazy"
+        onLoad={() => setIsLoading(false)}
+        onError={() => {
+          setSrc(fallbackAvatar);
+          setIsLoading(false);
+        }}
+      />
+    </div>
   );
 }
 
@@ -34,52 +57,58 @@ export default function Navbar() {
   const { user, logout } = useContext(AuthContext);
   const navigate = useNavigate();
   const location = useLocation();
+  const profileMenuRef = useRef(null);
+  const mobileMenuRef = useRef(null);
 
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [isHoveringCreate, setIsHoveringCreate] = useState(false);
 
+  // Enhanced scroll effect with more distinct background
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 10);
-    window.addEventListener('scroll', handleScroll);
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Close menus on route change
   useEffect(() => {
     setIsMenuOpen(false);
     setIsProfileOpen(false);
   }, [location]);
 
+  // Click outside handlers
   useEffect(() => {
     const handleClickOutside = (e) => {
-      if (!e.target.closest('.profile-menu') && !e.target.closest('.profile-button')) {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(e.target) && 
+          !e.target.closest('.profile-button')) {
         setIsProfileOpen(false);
       }
-      if (!e.target.closest('.mobile-menu') && !e.target.closest('.hamburger-button')) {
+      if (mobileMenuRef.current && !mobileMenuRef.current.contains(e.target) && 
+          !e.target.closest('.hamburger-button')) {
         setIsMenuOpen(false);
       }
-      if (
-        createModalOpen &&
-        !e.target.closest('.create-post-modal') &&
-        !e.target.closest('.create-post-button')
-      ) {
+      if (createModalOpen && !e.target.closest('.create-post-modal') && 
+          !e.target.closest('.create-post-button')) {
         setCreateModalOpen(false);
       }
     };
+
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [createModalOpen]);
 
+  // Body scroll lock for modal
   useEffect(() => {
-    const previousOverflow = document.body.style.overflow;
     if (createModalOpen) {
       document.body.style.overflow = 'hidden';
     } else {
-      document.body.style.overflow = previousOverflow || '';
+      document.body.style.overflow = 'unset';
     }
     return () => {
-      document.body.style.overflow = previousOverflow || '';
+      document.body.style.overflow = 'unset';
     };
   }, [createModalOpen]);
 
@@ -88,220 +117,294 @@ export default function Navbar() {
     navigate('/login', { replace: true });
     try {
       window.dispatchEvent(new CustomEvent('user:loggedout'));
-    } catch (e) {}
+    } catch (e) {
+      console.log('Logout event dispatch error:', e);
+    }
   };
 
-  const CreatePostModalPortal =
-    createModalOpen && user
-      ? createPortal(
-          <AnimatePresence>
-            {createModalOpen && (
-              <motion.div
-                key="create-post-modal"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.25 }}
-                className="fixed inset-0 z-[100] flex items-center justify-center bg-black bg-opacity-60"
-                aria-modal="true"
-                role="dialog"
-                aria-label="Create new post"
-              >
-                <motion.div
-                  initial={{ y: 24, opacity: 0, scale: 0.98 }}
-                  animate={{ y: 0, opacity: 1, scale: 1 }}
-                  exit={{ y: 24, opacity: 0, scale: 0.98 }}
-                  transition={{ duration: 0.25 }}
-                  className="create-post-modal bg-white dark:bg-[#071226] rounded-3xl shadow-2xl max-w-lg w-full p-8"
-                  tabIndex={-1}
-                  ref={el => { if (el) el.scrollTop = 0; }}
-                >
-                  <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-xl font-semibold text-neutral-900 dark:text-white">Create Post</h3>
-                    <button
-                      onClick={() => setCreateModalOpen(false)}
-                      className="p-3 rounded-xl text-purple-500 hover:bg-purple-100 dark:hover:bg-purple-800"
-                      aria-label="Close create post modal"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                  <CreatePost
-                    onCreated={post => {
-                      setCreateModalOpen(false);
-                      window.dispatchEvent(new CustomEvent('post:created', { detail: post }));
-                    }}
-                  />
-                </motion.div>
-              </motion.div>
-            )}
-          </AnimatePresence>,
-          document.body
-        )
-      : null;
+  const CreatePostModalPortal = createModalOpen && user ? createPortal(
+    <AnimatePresence mode="wait">
+      <motion.div
+        key="create-post-modal"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.2, ease: "easeOut" }}
+        className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+        aria-modal="true"
+        role="dialog"
+        aria-label="Create new post"
+      >
+        <motion.div
+          initial={{ scale: 0.9, opacity: 0, y: 20 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          exit={{ scale: 0.9, opacity: 0, y: 20 }}
+          transition={{ type: "spring", damping: 25, stiffness: 300 }}
+          className="create-post-modal bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-w-2xl w-full mx-auto border border-gray-200 dark:border-gray-700 max-h-[85vh] flex flex-col"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between p-6 border-b border-gray-100 dark:border-gray-800 flex-shrink-0">
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white">Create Post</h3>
+            <button
+              onClick={() => setCreateModalOpen(false)}
+              className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-200"
+              aria-label="Close create post modal"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto p-6">
+            <CreatePost
+              onCreated={(post) => {
+                setCreateModalOpen(false);
+                window.dispatchEvent(new CustomEvent('post:created', { detail: post }));
+              }}
+            />
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>,
+    document.body
+  ) : null;
+
+  const menuItems = [
+    { 
+      path: `/profile/${user?.id}`, 
+      label: 'Your Profile', 
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+        </svg>
+      )
+    },
+    { 
+      path: `/profile/${user?.id}/edit`, 
+      label: 'Settings', 
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+      )
+    },
+  ];
 
   return (
     <header
-      className={`sticky top-0 z-50 transition-all duration-300 ${
+      className={`sticky top-0 z-50 transition-all duration-500 ${
         isScrolled
-          ? 'bg-white/80 dark:bg-[#0a1628]/80 backdrop-blur-md shadow-lg'
-          : 'bg-transparent dark:bg-transparent'
-      } border-b border-neutral-200/25 dark:border-neutral-800/30`}
-      style={{ boxShadow: isScrolled ? '0 6px 24px -10px rgba(120, 40, 220, 0.13)' : '' }}
-      role="banner"
+          ? 'bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl shadow-lg border-b border-gray-300/50 dark:border-gray-600/50'
+          : 'bg-gradient-to-b from-white/95 to-white/90 dark:from-gray-900/95 dark:to-gray-900/90 backdrop-blur-lg border-b border-gray-200/80 dark:border-gray-700/80'
+      }`}
     >
-      <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-12">
-        <div className="h-16 flex items-center justify-between gap-8">
-          <Link to="/" className="flex items-center gap-4 group" aria-label="Luna Home">
-            <div className="w-14 h-14 rounded-full flex items-center justify-center shadow-lg bg-gradient-to-tr from-blue-600 via-purple-700 to-purple-800 mr-2" />
-            <span className="text-2xl sm:text-3xl font-extrabold tracking-wide bg-gradient-to-r from-blue-500 via-purple-600 to-purple-700 bg-clip-text text-transparent select-none pointer-events-none drop-shadow-md">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="h-16 flex items-center justify-between">
+          {/* Logo */}
+          <Link 
+            to="/" 
+            className="flex items-center gap-3 group"
+            aria-label="Luna Home"
+          >
+            <motion.div 
+              whileHover={{ scale: 1.05, rotate: 5 }}
+              className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg bg-gradient-to-br from-blue-500 via-purple-600 to-pink-500"
+            >
+              <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M21.6 15.6c-.3-.4-.8-.6-1.3-.6h-2.5c-.5 0-1 .2-1.3.6l-1.9 2.5c-.3.4-.8.6-1.3.6H9.7c-.5 0-1-.2-1.3-.6l-1.9-2.5c-.3-.4-.8-.6-1.3-.6H2.7c-.5 0-1 .2-1.3.6l-.7.9c-.3.4-.3.9 0 1.3l8.3 10.8c.3.4.8.6 1.3.6h11.4c.5 0 1-.2 1.3-.6l.7-.9c.3-.4.3-.9 0-1.3l-1.8-2.4zM12 0C7.6 0 4 3.6 4 8s3.6 8 8 8 8-3.6 8-8-3.6-8-8-8z"/>
+              </svg>
+            </motion.div>
+            <motion.span 
+              initial={{ opacity: 0.9 }}
+              whileHover={{ opacity: 1 }}
+              className="text-2xl font-black bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent"
+            >
               Luna
-            </span>
+            </motion.span>
           </Link>
 
-          <div className="flex items-center gap-4">
+          {/* Navigation Items */}
+          <div className="flex items-center gap-2">
             {user ? (
               <>
-                <div className="hidden sm:flex items-center gap-4">
+                {/* Desktop Navigation */}
+                <div className="hidden md:flex items-center gap-3">
                   <SearchBar />
-                  <button
+                  
+                  {/* Notifications */}
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    aria-label="Notifications"
+                    className="relative p-2.5 rounded-xl text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-200"
+                  >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+                        d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                    </svg>
+                    <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white dark:ring-gray-900" />
+                  </motion.button>
+
+                  {/* Create Post Button */}
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onHoverStart={() => setIsHoveringCreate(true)}
+                    onHoverEnd={() => setIsHoveringCreate(false)}
                     onClick={() => setCreateModalOpen(true)}
-                    className="create-post-button flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-tr from-blue-600 via-purple-700 to-purple-800 font-bold text-white text-3xl shadow-lg hover:scale-105 transition-transform focus:outline-none focus:ring-4 focus:ring-purple-500"
+                    className="create-post-button flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-300 border border-blue-400/30"
                     aria-label="Create new post"
                   >
-                    +
-                  </button>
-                  <button
-                    aria-label="Notifications"
-                    className="relative p-3 rounded-xl text-neutral-500 dark:text-neutral-400 hover:bg-purple-100 dark:hover:bg-purple-900 transition focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  >
-                    <svg className="w-7 h-7" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                      <path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                    </svg>
-                    <span className="absolute top-2 right-1 w-2 h-2 rounded-full bg-red-500 animate-pulse ring-2 ring-purple-500" />
-                  </button>
-                  <div className="relative">
-                    <button
+                    <motion.span
+                      animate={{ rotate: isHoveringCreate ? 90 : 0 }}
+                      transition={{ type: "spring", stiffness: 300 }}
+                      className="text-lg font-bold"
+                    >
+                      +
+                    </motion.span>
+                    <span className="hidden lg:block">Create</span>
+                  </motion.button>
+
+                  {/* Profile Menu */}
+                  <div className="relative" ref={profileMenuRef}>
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
                       onClick={() => setIsProfileOpen(!isProfileOpen)}
-                      className="profile-button flex items-center gap-3 px-4 py-2 rounded-2xl hover:bg-purple-100 dark:hover:bg-purple-900 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
+                      className="profile-button flex items-center p-1.5 rounded-2xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-200 border border-transparent hover:border-gray-200 dark:hover:border-gray-600"
                       aria-expanded={isProfileOpen}
                       aria-haspopup="true"
                     >
-                      <UserAvatar user={user} />
-                      <span className="hidden lg:inline-block max-w-[140px] truncate text-base font-semibold text-neutral-900 dark:text-white select-none ml-1">
-                        {user.name}
-                      </span>
-                      <svg className={`ml-1 w-5 h-5 text-neutral-500 dark:text-neutral-400 transition-transform ${isProfileOpen ? 'rotate-180' : ''}`}
-                        fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                        <path d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </button>
+                      {/* Only show user avatar in the trigger button */}
+                      <div className="flex items-center gap-2">
+                        <UserAvatar user={user} size="sm" />
+                        <span className="hidden lg:block text-sm font-medium text-gray-700 dark:text-gray-200 max-w-[100px] truncate">
+                          {user.name}
+                        </span>
+                      </div>
+                      <motion.svg
+                        animate={{ rotate: isProfileOpen ? 180 : 0 }}
+                        className="w-4 h-4 text-gray-500 ml-1"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </motion.svg>
+                    </motion.button>
+
                     <AnimatePresence>
                       {isProfileOpen && (
                         <motion.div
-                          initial={{ opacity: 0, y: -15, scale: 0.95 }}
+                          initial={{ opacity: 0, y: 8, scale: 0.95 }}
                           animate={{ opacity: 1, y: 0, scale: 1 }}
-                          exit={{ opacity: 0, y: -15, scale: 0.95 }}
-                          transition={{ duration: 0.22 }}
-                          className="profile-menu absolute right-0 mt-4 w-80 rounded-3xl bg-white dark:bg-[#181a2e] shadow-2xl overflow-hidden"
-                          style={{
-                            backdropFilter: 'blur(11px)',
-                            boxShadow: '0 10px 36px 0 rgba(84, 36, 184, 0.2)',
-                            border: '1.5px solid #a68ff3',
-                          }}
+                          exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                          transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                          className="absolute right-0 mt-3 w-64 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-600 overflow-hidden z-50"
                           role="menu"
-                          aria-label="User menu"
                         >
-                          <div className="flex flex-col items-center py-6 px-6 bg-gradient-to-r from-blue-50 via-purple-50 to-purple-100 dark:bg-[#19173b] relative select-none">
-                            <div className="absolute left-0 top-0 w-full h-2 bg-gradient-to-r from-blue-600 to-purple-600 opacity-60"></div>
-                            <img
-                              src={buildUrl(user.avatarUrl) || '/images/default-avatar.png'}
-                              alt={user.name}
-                              className="w-20 h-20 rounded-full ring-4 ring-purple-300 shadow-xl object-cover mb-2"
-                            />
-                            <span className="text-xl font-bold text-purple-900 dark:text-purple-200 mt-1">{user.name}</span>
-                            <span className="text-base text-purple-700 dark:text-purple-200 mb-1">{user.email}</span>
-                            {user.username &&
-                              <span className="text-sm font-mono text-neutral-400 dark:text-neutral-400 mb-1">@{user.username}</span>
-                            }
+                          {/* Profile Header */}
+                          <div className="p-4 bg-gradient-to-br from-blue-50/80 to-purple-50/80 dark:from-gray-700 dark:to-gray-800 border-b border-gray-100 dark:border-gray-600">
+                            <div className="flex items-center gap-3">
+                              <UserAvatar user={user} size="md" />
+                              <div className="flex-1 min-w-0">
+                                <h4 className="font-bold text-gray-900 dark:text-white truncate text-sm">{user.name}</h4>
+                                <p className="text-xs text-gray-600 dark:text-gray-300 truncate mt-0.5">{user.email}</p>
+                                {user.username && (
+                                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">@{user.username}</p>
+                                )}
+                              </div>
+                            </div>
                           </div>
-                          <div className="border-t border-purple-100 dark:border-purple-800 px-4 py-3 flex flex-col gap-1.5 bg-white dark:bg-[#19173b]">
-                            <Link
-                              to={`/profile/${user.id}`}
-                              className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-100 dark:hover:from-[#272155] dark:hover:to-[#373067] transition transform hover:scale-[1.03] focus:outline-none"
-                              role="menuitem"
-                            >
-                              <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" strokeWidth={2}
-                                strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
-                              <span className="font-semibold text-purple-800 dark:text-purple-200">Your Profile</span>
-                            </Link>
-                            <Link
-                              to={`/profile/${user.id}/edit`}
-                              className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-100 dark:hover:from-[#272155] dark:hover:to-[#373067] transition transform hover:scale-[1.03] focus:outline-none"
-                              role="menuitem"
-                            >
-                              <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" strokeWidth={2}
-                                strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                                <path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-                                <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                              </svg>
-                              <span className="font-semibold text-purple-800 dark:text-purple-200">Settings</span>
-                            </Link>
+
+                          {/* Menu Items */}
+                          <div className="p-2 space-y-1">
+                            {menuItems.map((item) => (
+                              <Link
+                                key={item.path}
+                                to={item.path}
+                                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors duration-200 group"
+                                role="menuitem"
+                                onClick={() => setIsProfileOpen(false)}
+                              >
+                                <div className="text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform duration-200">
+                                  {item.icon}
+                                </div>
+                                <span className="font-medium text-sm">{item.label}</span>
+                              </Link>
+                            ))}
+                            
+                            {/* Divider */}
+                            <div className="border-t border-gray-100 dark:border-gray-600 my-2"></div>
+                            
+                            {/* Logout Button */}
                             <button
                               onClick={handleLogout}
-                              className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-red-50 dark:hover:bg-red-950 transition transform hover:scale-[1.03] focus:outline-none"
+                              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 w-full transition-colors duration-200 group"
                               role="menuitem"
                             >
-                              <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                                <path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                              <svg className="w-5 h-5 group-hover:scale-110 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                               </svg>
-                              <span className="font-semibold text-red-500">Sign Out</span>
+                              <span className="font-medium text-sm">Sign Out</span>
                             </button>
                           </div>
                         </motion.div>
                       )}
                     </AnimatePresence>
-
                   </div>
                 </div>
-                <div className="flex sm:hidden items-center gap-3">
+
+                {/* Mobile Navigation */}
+                <div className="flex md:hidden items-center gap-2">
                   <SearchBar />
-                  <button
+                  
+                  <motion.button
+                    whileTap={{ scale: 0.95 }}
                     onClick={() => setIsMenuOpen(!isMenuOpen)}
-                    className="hamburger-button p-3 rounded-xl text-purple-600 dark:text-purple-400 hover:bg-purple-100 dark:hover:bg-purple-900 transition focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="hamburger-button p-2 rounded-xl text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-200 border border-gray-200 dark:border-gray-600"
                     aria-label="Toggle menu"
                     aria-expanded={isMenuOpen}
                   >
-                    {isMenuOpen ? (
-                      <svg className="w-7 h-7" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                        <path d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    ) : (
-                      <svg className="w-7 h-7" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                        <path d="M4 6h16M4 12h16M4 18h16" />
-                      </svg>
-                    )}
-                  </button>
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      {isMenuOpen ? (
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      ) : (
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                      )}
+                    </svg>
+                  </motion.button>
                 </div>
-                <button
+
+                {/* Floating Create Button for Mobile */}
+                <motion.button
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
                   onClick={() => setCreateModalOpen(true)}
-                  className="create-post-button sm:hidden fixed bottom-7 right-7 w-14 h-14 rounded-full bg-gradient-to-tr from-blue-600 via-purple-700 to-purple-800 shadow-lg text-white text-4xl font-extrabold flex items-center justify-center transition active:scale-95 focus:outline-none focus:ring-4 focus:ring-purple-500"
+                  className="create-post-button md:hidden fixed bottom-6 right-6 w-14 h-14 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 shadow-2xl text-white text-2xl font-bold flex items-center justify-center z-40 border border-blue-400/30"
                   aria-label="Create new post"
                 >
-                  +
-                </button>
+                  <motion.span
+                    whileHover={{ rotate: 90 }}
+                    transition={{ type: "spring", stiffness: 300 }}
+                  >
+                    +
+                  </motion.span>
+                </motion.button>
               </>
             ) : (
-              <div className="flex items-center gap-4">
+              // Auth Buttons for non-logged in users
+              <div className="flex items-center gap-3">
                 <Link
                   to="/login"
-                  className="px-6 py-2 rounded-2xl border border-transparent text-base font-semibold text-purple-700 bg-purple-100 hover:bg-purple-200 dark:text-purple-300 dark:bg-purple-900 dark:hover:bg-purple-800 transition"
+                  className="px-5 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors duration-200"
                 >
                   Sign In
                 </Link>
                 <Link
                   to="/signup"
-                  className="px-6 py-2 rounded-2xl text-base font-extrabold bg-gradient-to-r from-blue-600 to-purple-700 text-white shadow-lg hover:scale-105 transition"
+                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 text-white font-bold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 border border-blue-400/30"
                 >
                   Sign Up
                 </Link>
@@ -309,20 +412,48 @@ export default function Navbar() {
             )}
           </div>
         </div>
+
+        {/* Mobile Menu */}
         <AnimatePresence>
           {isMenuOpen && user && (
             <motion.div
+              ref={mobileMenuRef}
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.25 }}
-              className="mobile-menu sm:hidden overflow-hidden border-t border-neutral-200 dark:border-neutral-800 bg-white dark:bg-[#0a1628] rounded-2xl shadow-lg mt-1"
+              transition={{ duration: 0.3, ease: "easeInOut" }}
+              className="mobile-menu md:hidden overflow-hidden bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-600 mt-2"
             >
-              {/* Mobile menu: Add menu items here if needed */}
+              <div className="p-3 space-y-1">
+                {menuItems.map((item) => (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    className="flex items-center gap-3 p-3 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors duration-200 group"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    <div className="text-blue-600 dark:text-blue-400">
+                      {item.icon}
+                    </div>
+                    <span className="font-medium text-sm">{item.label}</span>
+                  </Link>
+                ))}
+                <div className="border-t border-gray-100 dark:border-gray-600 my-1"></div>
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center gap-3 p-3 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 w-full transition-colors duration-200"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                  </svg>
+                  <span className="font-medium text-sm">Sign Out</span>
+                </button>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
       </div>
+
       {CreatePostModalPortal}
     </header>
   );

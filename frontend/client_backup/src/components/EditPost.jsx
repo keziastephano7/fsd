@@ -96,7 +96,19 @@ export default function EditPost({ post, onSaved, onClose }) {
       if (file) fd.append('image', file);
       if (removeImage) fd.append('removeImage', 'true');
       if (merged.length) fd.append('tags', JSON.stringify(merged));
-      await API.put(`/posts/${post._id || post.id}`, fd);
+      
+      const response = await API.put(`/posts/${post._id || post.id}`, fd);
+      const updatedPost = response.data;
+      
+      // Dispatch event with the complete updated post data including new tags
+      window.dispatchEvent(new CustomEvent('post:updated', { 
+        detail: {
+          ...updatedPost,
+          _id: post._id || post.id,
+          tags: merged // Ensure tags are included
+        }
+      }));
+      
       onSaved();
       onClose();
     } catch (err) {
@@ -116,63 +128,70 @@ export default function EditPost({ post, onSaved, onClose }) {
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-2">
-        {/* Backdrop */}
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        {/* Enhanced Backdrop */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={onClose}
-          className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+          className="absolute inset-0 bg-black/60 backdrop-blur-xl"
           aria-hidden="true"
         />
 
-        {/* Modal */}
+        {/* Enhanced Modal */}
         <motion.div
-          initial={{ opacity: 0, scale: 0.97, y: 14 }}
+          initial={{ opacity: 0, scale: 0.9, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.97, y: 14 }}
-          transition={{ duration: 0.25, ease: 'easeOut' }}
-          className="relative w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl border border-purple-200/50 dark:border-purple-900/50 bg-white dark:bg-[#132042] overflow-hidden"
+          exit={{ opacity: 0, scale: 0.9, y: 20 }}
+          transition={{ 
+            type: "spring",
+            stiffness: 300,
+            damping: 30
+          }}
+          className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl shadow-2xl border-2 border-blue-200 dark:border-blue-800 bg-white dark:bg-gray-900 overflow-hidden"
           role="dialog"
           aria-modal="true"
           aria-labelledby="edit-post-title"
         >
-          <div className="sticky top-0 z-10 px-4 py-4 bg-white/95 dark:bg-[#132042]/95 backdrop-blur-xl border-b border-neutral-200 dark:border-neutral-800/30 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow">
-                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+          {/* Enhanced Header */}
+          <div className="sticky top-0 z-10 px-6 py-5 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
+                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
                 </svg>
               </div>
               <div>
-                <h2 id="edit-post-title" className="text-lg font-bold text-neutral-900 dark:text-white">
+                <h2 id="edit-post-title" className="text-xl font-bold text-gray-900 dark:text-white">
                   Edit Post
                 </h2>
-                <p className="text-xs text-neutral-500 dark:text-neutral-400 select-none">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
                   Update your content & tags
                 </p>
               </div>
             </div>
-            {/* Close button */}
-            <button
+            {/* Enhanced Close button */}
+            <motion.button
               onClick={onClose}
-              className="p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition focus:outline-none focus:ring-2 focus:ring-purple-500"
+              whileHover={{ scale: 1.1, rotate: 90 }}
+              whileTap={{ scale: 0.9 }}
+              className="p-2 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
               aria-label="Close edit post modal"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
-            </button>
+            </motion.button>
           </div>
 
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="p-4 space-y-3">
+          {/* Enhanced Form */}
+          <form onSubmit={handleSubmit} className="p-6 space-y-5">
             {/* Caption */}
-            <div className="space-y-1">
-              <label htmlFor="caption" className="block text-xs font-semibold text-neutral-700 dark:text-neutral-300 flex items-center gap-1 select-none">
-                <svg className="w-3.5 h-3.5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16m-7 6h7" />
+            <div className="space-y-2">
+              <label htmlFor="caption" className="block text-sm font-bold text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16m-7 6h7" />
                 </svg>
                 Caption
               </label>
@@ -180,103 +199,120 @@ export default function EditPost({ post, onSaved, onClose }) {
                 id="caption"
                 value={caption}
                 onChange={(e) => setCaption(e.target.value)}
-                rows={3}
+                rows={4}
                 placeholder="Edit your caption..."
-                className="w-full px-3 py-2 rounded-xl bg-neutral-50 dark:bg-[#171c38] border border-neutral-200 dark:border-neutral-700 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/15 text-sm text-neutral-900 dark:text-neutral-100 resize-none placeholder:text-neutral-400 dark:placeholder:text-neutral-500 transition"
+                className="w-full px-4 py-3 rounded-2xl bg-gray-50 dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 text-[15px] text-gray-900 dark:text-white resize-none placeholder:text-gray-400 dark:placeholder:text-gray-500 transition-all font-medium"
                 aria-label="Edit caption"
               />
-              <div className="text-[11px] text-neutral-500 dark:text-neutral-400 select-none">
+              <div className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                <svg className="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M17.707 9.293a1 1 0 010 1.414l-7 7a1 1 0 01-1.414 0l-7-7A.997.997 0 012 10V5a3 3 0 013-3h5c.256 0 .512.098.707.293l7 7zM5 6a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                </svg>
                 #hashtags supported
               </div>
             </div>
 
-            {/* Tags */}
-            <div className="space-y-1.5">
-              <h3 className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 flex items-center gap-1 select-none">
-                <svg className="w-3.5 h-3.5 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
+            {/* Enhanced Tags */}
+            <div className="space-y-3">
+              <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                <svg className="w-4 h-4 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M17.707 9.293a1 1 0 010 1.414l-7 7a1 1 0 01-1.414 0l-7-7A.997.997 0 012 10V5a3 3 0 013-3h5c.256 0 .512.098.707.293l7 7zM5 6a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
                 </svg>
                 Tags
               </h3>
               {tags.length > 0 && (
-                <div className="flex flex-wrap gap-1.5" role="list" aria-label="Post tags">
+                <div className="flex flex-wrap gap-2" role="list" aria-label="Post tags">
                   {tags.map(t => (
                     <motion.span
                       key={t}
                       initial={{ scale: 0, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
-                      className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gradient-to-r from-blue-100 to-purple-100 dark:from-blue-950/50 dark:to-purple-950/50 border border-purple-200 dark:border-purple-800/50 text-xs"
+                      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gradient-to-r from-blue-100 to-purple-100 dark:from-blue-900/30 dark:to-purple-900/30 border border-blue-200 dark:border-blue-800 text-sm shadow-sm"
                       role="listitem"
                     >
-                      <span className="text-purple-700 dark:text-purple-300 select-none">#{t}</span>
+                      <span className="text-blue-700 dark:text-blue-300 font-medium">#{t}</span>
                       <button
                         type="button"
                         onClick={() => removeTag(t)}
-                        className="text-purple-500 hover:text-purple-700 transition-colors focus:outline-none focus:ring-1 focus:ring-purple-300 rounded"
+                        className="text-blue-500 hover:text-blue-700 transition-colors focus:outline-none focus:ring-1 focus:ring-blue-300 rounded"
                         aria-label={`Remove tag ${t}`}
                       >
-                        <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                         </svg>
                       </button>
                     </motion.span>
                   ))}
                 </div>
               )}
-              <div className="flex gap-1.5">
+              <div className="flex gap-2">
                 <input
                   ref={tagInputRef}
                   value={tagInput}
                   onChange={(e) => setTagInput(e.target.value)}
                   onKeyDown={handleTagKeyDown}
-                  placeholder="Add tags"
-                  className="flex-1 px-3 py-1.5 rounded-xl bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-purple-800 focus:border-purple-500 focus:ring-1 focus:ring-purple-500/15 text-xs transition"
+                  placeholder="Add tags..."
+                  className="flex-1 px-4 py-2.5 rounded-xl bg-gray-100 dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 text-sm transition"
                   aria-label="Add tags"
                 />
-                <button
+                <motion.button
                   type="button"
                   onClick={() => {
                     if (tagInput.trim()) addTag(tagInput);
                     tagInputRef.current?.focus();
                   }}
-                  className="px-2.5 py-1.5 rounded-xl bg-purple-100 dark:bg-purple-950/30 hover:bg-purple-200 dark:hover:bg-purple-900/50 text-purple-700 border border-purple-200 dark:border-purple-800 font-medium text-xs focus:outline-none focus:ring-1 focus:ring-purple-300 transition"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="px-4 py-2.5 rounded-xl bg-blue-500 hover:bg-blue-600 text-white font-semibold text-sm shadow-lg transition-all"
                   aria-label="Add tag"
-                >+
-                </button>
+                >
+                  Add
+                </motion.button>
               </div>
             </div>
-            {/* Image Section */}
-            <div>
+
+            {/* Enhanced Image Section */}
+            <div className="space-y-3">
               {previewUrl && (
-                <div className="relative group">
+                <motion.div 
+                  className="relative group rounded-2xl overflow-hidden shadow-lg"
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                >
                   <img
                     src={previewUrl}
                     alt="Post preview"
-                    className="w-full max-h-56 object-cover rounded-xl border border-neutral-200 dark:border-neutral-700 shadow"
+                    className="w-full max-h-80 object-cover rounded-2xl"
                   />
-                  <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 rounded-xl transition-opacity flex items-center justify-center gap-2">
-                    <button
+                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+                    <motion.button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
-                      className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow transition-all hover:scale-105 focus:outline-none focus:ring-1 focus:ring-blue-300"
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
+                      className="p-3 bg-blue-500 hover:bg-blue-600 text-white rounded-2xl shadow-lg transition-all flex items-center gap-2"
                       aria-label="Change image"
                     >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                       </svg>
-                    </button>
-                    <button
+                      Change
+                    </motion.button>
+                    <motion.button
                       type="button"
                       onClick={handleRemoveImage}
-                      className="p-2 bg-red-500 hover:bg-red-600 text-white rounded-full shadow transition-all hover:scale-105 focus:outline-none focus:ring-1 focus:ring-red-300"
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
+                      className="p-3 bg-red-500 hover:bg-red-600 text-white rounded-2xl shadow-lg transition-all flex items-center gap-2"
                       aria-label="Remove image"
                     >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                       </svg>
-                    </button>
+                      Remove
+                    </motion.button>
                   </div>
-                </div>
+                </motion.div>
               )}
               <div>
                 <input
@@ -287,34 +323,37 @@ export default function EditPost({ post, onSaved, onClose }) {
                   className="hidden"
                   aria-label="Upload new image"
                 />
-                <button
+                <motion.button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="w-full px-3 py-2 rounded-xl bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 border border-dashed border-neutral-300 dark:border-neutral-600 hover:border-purple-400 dark:hover:border-purple-600 text-neutral-700 dark:text-neutral-300 font-medium text-xs transition flex items-center justify-center gap-2 select-none"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="w-full px-4 py-3 rounded-2xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 border-2 border-dashed border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-600 text-gray-700 dark:text-gray-300 font-semibold text-sm transition-all flex items-center justify-center gap-2 shadow-sm"
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
                   {previewUrl ? 'Change Image' : 'Add Image'}
-                </button>
-                <p className="text-[10px] text-neutral-500 dark:text-neutral-400 mt-2 text-center select-none">
+                </motion.button>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 text-center">
                   PNG, JPG up to 5MB
                 </p>
               </div>
             </div>
-            {/* Error */}
+
+            {/* Enhanced Error */}
             <AnimatePresence>
               {error && (
                 <motion.div
-                  initial={{ opacity: 0, y: -7 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -7 }}
-                  className="p-2 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/30"
+                  initial={{ opacity: 0, y: -10, height: 0 }}
+                  animate={{ opacity: 1, y: 0, height: 'auto' }}
+                  exit={{ opacity: 0, y: -10, height: 0 }}
+                  className="p-4 rounded-2xl bg-red-50 dark:bg-red-900/30 border-2 border-red-200 dark:border-red-800"
                   role="alert"
                   aria-live="assertive"
                 >
-                  <p className="text-xs text-red-600 dark:text-red-400 flex items-center gap-1">
-                    <svg className="w-3 h-3 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <p className="text-sm text-red-700 dark:text-red-300 flex items-center gap-2 font-medium">
+                    <svg className="w-5 h-5 shrink-0" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                     </svg>
                     {error}
@@ -323,46 +362,54 @@ export default function EditPost({ post, onSaved, onClose }) {
               )}
             </AnimatePresence>
 
-            {/* Buttons */}
-            <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-neutral-200 dark:border-neutral-800/30">
+            {/* Enhanced Buttons */}
+            <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
               <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 type="submit"
                 disabled={loading}
-                className="flex-1 relative overflow-hidden px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 via-purple-600 to-purple-700 hover:from-blue-500 hover:via-purple-500 hover:to-purple-600 text-white font-semibold shadow hover:shadow-purple-500/50 transition disabled:opacity-60 disabled:cursor-not-allowed group focus:outline-none focus:ring-2 focus:ring-purple-400"
+                className="flex-1 relative overflow-hidden px-6 py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold shadow-xl hover:shadow-2xl transition-all disabled:opacity-60 disabled:cursor-not-allowed group"
               >
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/25 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-600"></div>
-                <span className="relative flex items-center justify-center gap-2 select-none">
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
+                <span className="relative flex items-center justify-center gap-2">
                   {loading ? (
                     <>
-                      <svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
-                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2.5" strokeOpacity="0.22" />
-                        <path d="M22 12a10 10 0 00-10-10" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-                      </svg>
+                      <motion.svg 
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                        className="w-5 h-5" 
+                        viewBox="0 0 24 24" 
+                        fill="none"
+                      >
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
+                        <path d="M22 12a10 10 0 00-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                      </motion.svg>
                       Saving...
                     </>
                   ) : (
                     <>
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                       </svg>
-                      Save
+                      Save Changes
                     </>
                   )}
                 </span>
               </motion.button>
-              <button
+              <motion.button
                 type="button"
                 onClick={onClose}
                 disabled={loading}
-                className="px-4 py-2.5 rounded-xl bg-white dark:bg-[#191f37] text-neutral-700 dark:text-neutral-200 font-semibold border border-neutral-300 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-900/40 transition hover:scale-105 active:scale-95 shadow disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 select-none focus:outline-none focus:ring-2 focus:ring-purple-400"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="px-6 py-3.5 rounded-2xl bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-semibold border-2 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all shadow-sm disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>
                 Cancel
-              </button>
+              </motion.button>
             </div>
           </form>
         </motion.div>

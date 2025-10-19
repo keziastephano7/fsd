@@ -164,7 +164,19 @@ export default function Feed({ tagFilter: propTagFilter } = {}) {
       const updated = e.detail || {};
       const updatedId = updated._id || updated.id;
       if (!updatedId) return;
-      setAllPosts(prev => prev.map(p => ((p._id || p.id) === updatedId ? { ...p, ...updated } : p)));
+      
+      setAllPosts(prev => prev.map(p => {
+        if ((p._id || p.id) === updatedId) {
+          // Merge all updated properties including tags
+          return { 
+            ...p, 
+            ...updated,
+            // Ensure tags are properly set (could be from caption parsing or manual tags)
+            tags: updated.tags || p.tags || []
+          };
+        }
+        return p;
+      }));
     };
 
     window.addEventListener('post:created', onPostCreated);
