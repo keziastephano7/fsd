@@ -13,7 +13,6 @@ export default function SearchBar() {
   const inputRef = useRef(null);
   const navigate = useNavigate();
 
-  // Close on outside click
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (searchRef.current && !searchRef.current.contains(e.target)) {
@@ -24,13 +23,11 @@ export default function SearchBar() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Search with debounce
   useEffect(() => {
     if (!searchQuery.trim()) {
       setSearchResults({ users: [], tags: [] });
       return;
     }
-
     const timeoutId = setTimeout(async () => {
       setLoading(true);
       try {
@@ -38,10 +35,7 @@ export default function SearchBar() {
         try {
           const usersRes = await API.get(`/users/search?q=${encodeURIComponent(searchQuery)}`);
           users = usersRes.data || [];
-        } catch {
-          // User search fallback
-        }
-
+        } catch {}
         const postsRes = await API.get('/posts');
         const allPosts = postsRes.data || [];
         const allTags = new Set();
@@ -54,7 +48,6 @@ export default function SearchBar() {
             });
           }
         });
-
         setSearchResults({
           users: users.slice(0, 5),
           tags: Array.from(allTags).slice(0, 5),
@@ -65,7 +58,6 @@ export default function SearchBar() {
         setLoading(false);
       }
     }, 300);
-
     return () => clearTimeout(timeoutId);
   }, [searchQuery]);
 
@@ -83,58 +75,46 @@ export default function SearchBar() {
 
   return (
     <div ref={searchRef} className="relative">
-      {/* Search Input */}
       <div className="relative">
         {isOpen ? (
           <motion.div
             initial={{ width: 0, opacity: 0 }}
-            animate={{ width: 280, opacity: 1 }}
+            animate={{ width: 220, opacity: 1 }}
             className="relative"
           >
             <input
               ref={inputRef}
               type="text"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={e => setSearchQuery(e.target.value)}
               onFocus={() => setIsOpen(true)}
-              placeholder="Search users or tags..."
-              className="w-full pl-10 pr-10 py-2 rounded-xl bg-neutral-100 dark:bg-neutral-800 border-2 border-transparent focus:border-purple-500 focus:ring-4 focus:ring-purple-500/20 text-sm transition-all duration-300"
+              placeholder="Search users/tags..."
+              className="w-full pl-8 pr-8 py-1.5 rounded-lg bg-neutral-100 dark:bg-neutral-800 border border-transparent focus:border-purple-500 focus:ring-2 focus:ring-purple-500/30 text-xs transition"
               autoFocus
               aria-label="Search users or tags"
               aria-expanded={isOpen}
               aria-controls="search-dropdown"
             />
-            <svg
-              className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-purple-500"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={2}
-              strokeLinecap="round"
-              strokeLinejoin="round"
+            {/* <svg
+              className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-purple-500"
+              fill="none" stroke="currentColor" strokeWidth={2}
+              strokeLinecap="round" strokeLinejoin="round"
               viewBox="0 0 24 24"
               aria-hidden="true"
-              focusable="false"
             >
               <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
+            </svg> */}
             {searchQuery && (
               <button
                 onClick={() => {
                   setSearchQuery('');
                   inputRef.current?.focus();
                 }}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-purple-600 dark:hover:text-neutral-300"
                 aria-label="Clear search"
               >
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  viewBox="0 0 24 24"
-                >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2}
+                  strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
                   <path d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
@@ -144,21 +124,17 @@ export default function SearchBar() {
           <button
             onClick={() => {
               setIsOpen(true);
-              setTimeout(() => inputRef.current?.focus(), 100);
+              setTimeout(() => inputRef.current?.focus(), 80);
             }}
-            className="p-2 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-800 text-purple-600 dark:text-purple-400 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-purple-500"
+            className="p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 text-purple-600 dark:text-purple-400 transition focus:outline-none focus:ring-2 focus:ring-purple-500"
             aria-label="Open search"
           >
             <svg
-              className="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={2}
-              strokeLinecap="round"
-              strokeLinejoin="round"
+              className="w-5 h-5"
+              fill="none" stroke="currentColor" strokeWidth={2}
+              strokeLinecap="round" strokeLinejoin="round"
               viewBox="0 0 24 24"
               aria-hidden="true"
-              focusable="false"
             >
               <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
@@ -166,7 +142,6 @@ export default function SearchBar() {
         )}
       </div>
 
-      {/* Dropdown */}
       <AnimatePresence>
         {isOpen && searchQuery && (
           <motion.div
@@ -174,100 +149,76 @@ export default function SearchBar() {
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="absolute top-full right-0 mt-2 w-80 rounded-2xl bg-white dark:bg-[#0f1c2e] border-2 border-neutral-200 dark:border-neutral-800 shadow-2xl overflow-hidden z-50"
+            className="absolute top-full right-0 mt-1 w-72 rounded-xl bg-white dark:bg-[#16234b] border border-neutral-200 dark:border-neutral-800 shadow-xl z-50"
             role="listbox"
           >
             {loading ? (
-              <div className="p-8 text-center">
-                <svg
-                  className="w-8 h-8 animate-spin mx-auto text-purple-600"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                >
-                  <circle
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="3"
-                    strokeOpacity="0.25"
-                  />
-                  <path
-                    d="M22 12a10 10 0 00-10-10"
-                    stroke="currentColor"
-                    strokeWidth="3"
-                    strokeLinecap="round"
-                  />
+              <div className="p-5 text-center">
+                <svg className="w-6 h-6 animate-spin mx-auto text-purple-600" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2.5" strokeOpacity="0.22" />
+                  <path d="M22 12a10 10 0 00-10-10" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
                 </svg>
-                <p className="text-sm text-neutral-600 dark:text-neutral-400 mt-2">Searching...</p>
+                <p className="text-xs text-neutral-600 dark:text-neutral-400 mt-2">Searching...</p>
               </div>
             ) : searchResults.users.length === 0 && searchResults.tags.length === 0 ? (
-              <div className="p-8 text-center">
-                <svg
-                  className="w-12 h-12 mx-auto text-neutral-400 mb-2"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  viewBox="0 0 24 24"
-                >
+              <div className="p-5 text-center">
+                <svg className="w-7 h-7 mx-auto text-neutral-400 mb-1" fill="none" stroke="currentColor" strokeWidth={2}
+                  strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
                   <path d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                <p className="text-sm text-neutral-600 dark:text-neutral-400">No results found</p>
+                <p className="text-xs text-neutral-600 dark:text-neutral-400">No results found</p>
               </div>
             ) : (
-              <div className="max-h-96 overflow-y-auto divide-y divide-neutral-200 dark:divide-neutral-800">
+              <div className="max-h-80 overflow-y-auto divide-y divide-neutral-200 dark:divide-neutral-800">
                 {/* Users Section */}
                 {searchResults.users.length > 0 && (
-                  <div className="p-3">
-                    <h3 className="text-xs font-semibold text-neutral-500 dark:text-neutral-400 uppercase mb-2 px-2 select-none">
+                  <div className="p-2">
+                    <h3 className="text-[11px] font-semibold text-neutral-500 dark:text-neutral-400 uppercase mb-1 px-1 select-none">
                       Users
                     </h3>
                     {searchResults.users.map((user) => (
                       <button
                         key={user._id || user.id}
                         onClick={() => handleUserClick(user._id || user.id)}
-                        className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors focus:outline-none focus:bg-purple-100 dark:focus:bg-purple-900"
+                        className="w-full flex items-center gap-2 p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition focus:outline-none focus:bg-purple-50 dark:focus:bg-purple-950"
                         role="option"
                         aria-selected="false"
                       >
                         <img
                           src={buildUrl(user.avatarUrl) || '/images/default-avatar.png'}
                           alt={user.name}
-                          className="w-10 h-10 rounded-full object-cover"
+                          className="w-9 h-9 rounded-full object-cover"
                           loading="lazy"
                           onError={e => { e.target.onerror = null; e.target.src = '/images/default-avatar.png'; }}
                         />
                         <div className="text-left flex-1 min-w-0 overflow-hidden">
-                          <p className="font-semibold text-neutral-900 dark:text-white text-sm truncate">{user.name}</p>
-                          <p className="text-xs text-neutral-600 dark:text-neutral-400 truncate">{user.email}</p>
+                          <p className="font-semibold text-neutral-900 dark:text-white text-xs truncate">{user.name}</p>
+                          <p className="text-[11px] text-neutral-600 dark:text-neutral-400 truncate">{user.email}</p>
                         </div>
                       </button>
                     ))}
                   </div>
                 )}
-
                 {/* Tags Section */}
                 {searchResults.tags.length > 0 && (
-                  <div className="p-3 border-t border-neutral-200 dark:border-neutral-800">
-                    <h3 className="text-xs font-semibold text-neutral-500 dark:text-neutral-400 uppercase mb-2 px-2 select-none">
+                  <div className="p-2 border-t border-neutral-200 dark:border-neutral-800">
+                    <h3 className="text-[11px] font-semibold text-neutral-500 dark:text-neutral-400 uppercase mb-1 px-1 select-none">
                       Tags
                     </h3>
                     {searchResults.tags.map((tag, index) => (
                       <button
                         key={index}
                         onClick={() => handleTagClick(tag)}
-                        className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors focus:outline-none focus:bg-purple-100 dark:focus:bg-purple-900"
+                        className="w-full flex items-center gap-2 p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition focus:outline-none focus:bg-purple-50 dark:focus:bg-purple-950"
                         role="option"
                         aria-selected="false"
                       >
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center select-none">
-                          <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center select-none">
+                          <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
                             <path fillRule="evenodd" d="M17.707 9.293a1 1 0 010 1.414l-7 7a1 1 0 01-1.414 0l-7-7A.997.997 0 012 10V5a3 3 0 013-3h5c.256 0 .512.098.707.293l7 7zM5 6a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
                           </svg>
                         </div>
-                        <p className="font-semibold text-neutral-900 dark:text-white text-sm truncate">#{tag}</p>
+                        <p className="font-semibold text-neutral-900 dark:text-white text-xs truncate">#{tag}</p>
                       </button>
                     ))}
                   </div>

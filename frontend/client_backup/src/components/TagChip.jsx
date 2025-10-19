@@ -2,25 +2,18 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 
-/**
- * TagChip - Premium Luna Design
- * - Beautiful gradient styling
- * - Smooth hover animations
- * - Always visible, clickable to filter
- */
-
 export default function TagChip({ tag }) {
   if (!tag) return null;
 
   return (
     <motion.div
-      whileHover={{ scale: 1.05 }}
-      whileTap={{ scale: 0.95 }}
+      whileHover={{ scale: 1.07 }}
+      whileTap={{ scale: 0.93 }}
       className="inline-block"
     >
       <Link
         to={`/tag/${encodeURIComponent(tag)}`}
-        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-blue-100 to-purple-100 dark:from-blue-950/50 dark:to-purple-950/50 border-2 border-purple-200/50 dark:border-purple-800/50 text-sm font-semibold text-purple-700 dark:text-purple-300 hover:from-blue-200 hover:to-purple-200 dark:hover:from-blue-900/50 dark:hover:to-purple-900/50 hover:border-purple-400 dark:hover:border-purple-600 transition-all duration-300 shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-blue-100 to-purple-100 dark:from-blue-950/60 dark:to-purple-950/60 border-2 border-purple-300/60 dark:border-purple-700/60 text-sm font-semibold text-purple-700 dark:text-purple-300 hover:from-blue-200 hover:to-purple-200 dark:hover:from-blue-900/60 dark:hover:to-purple-900/60 hover:border-purple-500 dark:hover:border-purple-700 transition-all duration-300 shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-purple-500"
         aria-label={`View posts tagged ${tag}`}
         role="link"
         tabIndex={0}

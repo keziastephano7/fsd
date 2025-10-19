@@ -105,7 +105,6 @@ export default function CreatePost({ onCreated }) {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       const f = e.dataTransfer.files[0];
       if (f.type.startsWith('image/')) {
@@ -201,27 +200,27 @@ export default function CreatePost({ onCreated }) {
 
   if (!user) {
     return (
-      <div className="max-w-3xl mx-auto p-6 rounded-3xl bg-gradient-to-br from-blue-50/50 to-purple-50/50 dark:from-blue-950/20 dark:to-purple-950/20 border-2 border-dashed border-purple-200 dark:border-purple-800/50 text-center select-none">
-        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
-          <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div className="max-w-xl mx-auto p-4 rounded-2xl bg-gradient-to-br from-blue-50/50 to-purple-50/50 dark:from-blue-950/20 dark:to-purple-950/20 border border-dashed border-purple-200 dark:border-purple-800/50 text-center select-none shadow">
+        <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow">
+          <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
           </svg>
         </div>
-        <h3 className="text-lg font-semibold text-neutral-900 dark:text-white mb-2">Ready to share?</h3>
-        <p className="text-sm text-neutral-600 dark:text-neutral-400">Sign in to create and share your posts with Luna</p>
+        <h3 className="text-base font-semibold text-neutral-900 dark:text-white mb-1">Ready to share?</h3>
+        <p className="text-xs text-neutral-600 dark:text-neutral-400">Sign in to create and share your posts with Luna</p>
       </div>
     );
   }
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
-      className="max-w-3xl mx-auto relative"
+      className="max-w-xl mx-auto relative"
     >
       <form
         onSubmit={submit}
-        className="relative bg-white dark:bg-[#0f1c2e] rounded-3xl shadow-2xl border-2 border-purple-200/50 dark:border-purple-900/50 overflow-hidden"
+        className="relative bg-white dark:bg-[#10172a] rounded-2xl shadow-xl border border-purple-200/50 dark:border-purple-900/40 overflow-hidden"
         onDragEnter={handleDrag}
         onDragLeave={handleDrag}
         onDragOver={handleDrag}
@@ -230,57 +229,55 @@ export default function CreatePost({ onCreated }) {
         aria-label="Create new post form"
       >
         {/* Header */}
-        <div className="p-5 sm:p-6 border-b border-neutral-100 dark:border-neutral-800/50 flex items-center gap-4">
+        <div className="p-3 sm:p-4 border-b border-neutral-100 dark:border-neutral-800/50 flex items-center gap-3">
           <div className="shrink-0">
             {user?.avatarUrl ? (
               <img
                 src={buildUrl(user.avatarUrl)}
                 alt={user.name}
-                className="w-12 h-12 rounded-full object-cover ring-4 ring-purple-500/30 shadow-lg"
-                onError={(e) => e.currentTarget.style.display = 'none'}
+                className="w-10 h-10 rounded-full object-cover ring-2 ring-purple-400/30 shadow"
                 loading="lazy"
               />
             ) : (
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg ring-4 ring-purple-500/30 shadow-lg select-none">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-base ring-2 ring-purple-400/30 shadow select-none">
                 {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
               </div>
             )}
           </div>
-
           <div className="flex-1">
-            <h2 className="font-semibold text-neutral-900 dark:text-white flex items-center gap-2 select-none">
+            <h2 className="font-semibold text-neutral-900 dark:text-white text-sm flex items-center gap-2 select-none">
               <span>Create Post</span>
-              <div className="w-2 h-2 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 animate-pulse"></div>
+              <span className="w-2 h-2 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 animate-pulse"></span>
             </h2>
-            <p className="text-sm text-neutral-600 dark:text-neutral-400 select-none">
-              Share your thoughts with {user.name}
+            <p className="text-xs text-neutral-600 dark:text-neutral-400 select-none">
+              Share with {user.name}
             </p>
           </div>
         </div>
 
         {/* Main Content */}
-        <div className="p-5 sm:p-6 space-y-5">
+        <div className="p-3 sm:p-4 space-y-3">
           {/* Caption Textarea */}
-          <div className="space-y-2">
+          <div className="space-y-1">
             <textarea
               id="caption"
               name="caption"
               placeholder="What's on your mind? ✨"
               value={caption}
-              onChange={(e) => {
+              onChange={e => {
                 setCaption(e.target.value);
                 setError('');
                 setFieldErrors({});
               }}
-              rows={4}
+              rows={3}
               maxLength={MAX_CHAR}
-              className="w-full px-4 py-3 sm:px-5 sm:py-4 rounded-2xl bg-neutral-50 dark:bg-[#07142a] border-2 border-transparent focus:border-purple-500 focus:ring-4 focus:ring-purple-500/20 text-neutral-900 dark:text-neutral-100 resize-none placeholder:text-neutral-400 dark:placeholder:text-neutral-500 transition-all duration-300 text-sm sm:text-base"
+              className="w-full px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-xl bg-neutral-50 dark:bg-[#151d34] border border-transparent focus:border-purple-500 focus:ring-2 focus:ring-purple-500/10 text-neutral-900 dark:text-neutral-100 text-sm placeholder:text-neutral-400 dark:placeholder:text-neutral-500 transition"
               aria-invalid={fieldErrors.caption ? "true" : "false"}
               aria-describedby="caption-error"
             />
-            <div className="flex justify-between items-center text-xs">
+            <div className="flex justify-between items-center text-xs mt-0.5">
               <span className="text-neutral-500 dark:text-neutral-400 select-none">
-                💡 Use #hashtags to categorize your post
+                #hashtags supported
               </span>
               <span className={`font-medium select-none ${caption.length > MAX_CHAR * 0.9 ? 'text-red-500' : 'text-neutral-500 dark:text-neutral-400'}`}>
                 {caption.length}/{MAX_CHAR}
@@ -289,29 +286,28 @@ export default function CreatePost({ onCreated }) {
           </div>
 
           {/* Tags Section */}
-          <div className="space-y-3">
-            <h3 className="text-sm font-semibold text-neutral-700 dark:text-neutral-300 flex items-center gap-2 select-none">
-              <svg className="w-4 h-4 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
+          <div className="space-y-1.5">
+            <h3 className="text-xs font-semibold text-neutral-700 dark:text-neutral-300 flex items-center gap-1 select-none">
+              <svg className="w-3.5 h-3.5 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M17.707 9.293a1 1 0 010 1.414l-7 7a1 1 0 01-1.414 0l-7-7A.997.997 0 012 10V5a3 3 0 013-3h5c.256 0 .512.098.707.293l7 7zM5 6a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
               </svg>
               Tags
             </h3>
-
             {tags.length > 0 && (
-              <div className="flex flex-wrap gap-2" role="list" aria-label="Selected tags">
+              <div className="flex flex-wrap gap-1.5" role="list" aria-label="Selected tags">
                 {tags.map(t => (
                   <motion.span
                     key={t}
                     initial={{ scale: 0, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
-                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-blue-100 to-purple-100 dark:from-blue-950/50 dark:to-purple-950/50 border border-purple-200 dark:border-purple-800/50 text-sm"
+                    className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gradient-to-r from-blue-100 to-purple-100 dark:from-blue-950/50 dark:to-purple-950/50 border border-purple-200 dark:border-purple-800/50 text-xs"
                     role="listitem"
                   >
-                    <span className="text-purple-700 dark:text-purple-300 font-medium select-none">#{t}</span>
+                    <span className="text-purple-700 dark:text-purple-300 select-none">#{t}</span>
                     <button
                       type="button"
                       onClick={() => removeTag(t)}
-                      className="text-purple-500 hover:text-purple-700 transition-colors focus:outline-none focus:ring-2 focus:ring-purple-400 rounded"
+                      className="text-purple-500 hover:text-purple-700 transition-colors focus:outline-none focus:ring-1 focus:ring-purple-300 rounded"
                       aria-label={`Remove tag ${t}`}
                     >
                       <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -322,15 +318,14 @@ export default function CreatePost({ onCreated }) {
                 ))}
               </div>
             )}
-
-            <div className="flex gap-2">
+            <div className="flex gap-1.5">
               <input
                 ref={tagInputRef}
                 value={tagInput}
-                onChange={(e) => setTagInput(e.target.value)}
+                onChange={e => setTagInput(e.target.value)}
                 onKeyDown={handleTagKeyDown}
-                placeholder="Add tags (press Enter)"
-                className="flex-1 px-4 py-2.5 rounded-xl bg-neutral-100 dark:bg-neutral-800 border-2 border-transparent focus:border-purple-500 focus:ring-4 focus:ring-purple-500/20 text-sm transition-all duration-300"
+                placeholder="Add tags"
+                className="flex-1 px-3 py-1.5 rounded-lg bg-neutral-100 dark:bg-neutral-800 border border-transparent focus:border-purple-500 focus:ring-1 focus:ring-purple-500/15 text-xs transition"
                 aria-label="Add tags"
               />
               <button
@@ -339,47 +334,44 @@ export default function CreatePost({ onCreated }) {
                   if (tagInput.trim()) addTag(tagInput);
                   tagInputRef.current?.focus();
                 }}
-                className="px-4 py-2.5 rounded-xl bg-purple-100 dark:bg-purple-950/30 hover:bg-purple-200 dark:hover:bg-purple-900/50 text-purple-700 dark:text-purple-300 font-medium text-sm border border-purple-200 dark:border-purple-800/50 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                className="px-2.5 py-1.5 rounded-lg bg-purple-100 dark:bg-purple-950/30 hover:bg-purple-200 dark:hover:bg-purple-900/50 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800/50 font-medium text-xs focus:outline-none focus:ring-1 focus:ring-purple-300 transition"
                 aria-label="Add tag"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
+              >+
               </button>
             </div>
           </div>
 
           {/* Image Upload */}
-          <div className="space-y-4">
+          <div>
             {previewUrl ? (
               <div className="relative group">
                 <img
                   src={previewUrl}
                   alt="Post preview"
-                  className="w-full max-h-80 object-cover rounded-2xl border-2 border-neutral-200 dark:border-neutral-700 shadow-lg"
+                  className="w-full max-h-56 object-cover rounded-xl border border-neutral-200 dark:border-neutral-700 shadow"
                   loading="lazy"
                 />
-                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 rounded-2xl transition-opacity duration-300 flex items-center justify-center">
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 rounded-xl transition-opacity flex items-center justify-center">
                   <button
                     type="button"
                     onClick={removeImage}
-                    className="p-3 bg-red-500 hover:bg-red-600 text-white rounded-full shadow-lg transition-all duration-200 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-red-400"
+                    className="p-2 bg-red-500 hover:bg-red-600 text-white rounded-full shadow transition hover:scale-110 focus:outline-none focus:ring-1 focus:ring-red-300"
                     aria-label="Remove image"
                   >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                     </svg>
                   </button>
                 </div>
-                <div className="absolute bottom-3 left-3 px-3 py-1 bg-black/60 backdrop-blur-sm text-white text-xs rounded-full select-none">
+                <div className="absolute bottom-2 left-2 px-2 py-0.5 bg-black/70 backdrop-blur-sm text-white text-[10px] rounded select-none">
                   {file ? `${Math.round(file.size / 1024)} KB` : ''}
                 </div>
               </div>
             ) : (
               <div
-                className={`relative border-2 border-dashed rounded-2xl p-8 text-center transition-all duration-300 cursor-pointer select-none ${
+                className={`relative border border-dashed rounded-xl p-5 text-center transition cursor-pointer select-none ${
                   dragActive
-                    ? 'border-purple-500 bg-purple-50 dark:bg-purple-950/30'
+                    ? 'border-purple-400 bg-purple-50 dark:bg-purple-950/30'
                     : 'border-neutral-300 dark:border-neutral-700 hover:border-purple-400 dark:hover:border-purple-600'
                 }`}
               >
@@ -392,18 +384,17 @@ export default function CreatePost({ onCreated }) {
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                   aria-label="Upload image"
                 />
-
                 <div className="pointer-events-none">
-                  <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
-                    <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="w-8 h-8 mx-auto mb-2.5 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow">
+                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
                   </div>
-                  <h3 className="text-lg font-semibold text-neutral-900 dark:text-white mb-2">
+                  <h3 className="text-sm font-semibold text-neutral-900 dark:text-white mb-1">
                     {dragActive ? 'Drop your image here' : 'Add a photo'}
                   </h3>
-                  <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-4">Drag and drop or click to browse</p>
-                  <p className="text-xs text-neutral-500">PNG, JPG up to 5MB</p>
+                  <p className="text-xs text-neutral-600 dark:text-neutral-400 mb-1.5">Drag & drop or click to upload</p>
+                  <p className="text-[10px] text-neutral-500">PNG, JPG up to 5MB</p>
                 </div>
               </div>
             )}
@@ -413,16 +404,16 @@ export default function CreatePost({ onCreated }) {
           <AnimatePresence>
             {(error || fieldErrors.caption) && (
               <motion.div
-                initial={{ opacity: 0, y: -10 }}
+                initial={{ opacity: 0, y: -7 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className="p-4 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50"
+                exit={{ opacity: 0, y: -7 }}
+                className="p-2 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/30"
                 role="alert"
                 aria-live="assertive"
                 id="caption-error"
               >
-                <p className="text-sm text-red-600 dark:text-red-400 flex items-center gap-2">
-                  <svg className="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <p className="text-xs text-red-600 dark:text-red-400 flex items-center gap-1">
+                  <svg className="w-3 h-3 shrink-0" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                   </svg>
                   {fieldErrors.caption || error}
@@ -433,42 +424,36 @@ export default function CreatePost({ onCreated }) {
         </div>
 
         {/* Footer */}
-        <div className="px-5 sm:px-6 py-4 bg-neutral-50 dark:bg-[#07142a] border-t border-neutral-100 dark:border-neutral-800/50">
-          <div className="flex items-center justify-end gap-4">
+        <div className="px-3 sm:px-4 py-2 bg-neutral-50 dark:bg-[#161d37] border-t border-neutral-100 dark:border-neutral-800/50">
+          <div className="flex items-center justify-end gap-3">
             <motion.button
-              whileHover={canSubmit() ? { scale: 1.05 } : {}}
-              whileTap={canSubmit() ? { scale: 0.95 } : {}}
+              whileHover={canSubmit() ? { scale: 1.04 } : {}}
+              whileTap={canSubmit() ? { scale: 0.98 } : {}}
               type="submit"
               disabled={!canSubmit()}
-              className={`relative overflow-hidden px-6 py-3 rounded-xl font-semibold text-sm shadow-lg transition-all duration-300 ${
+              className={`px-4 py-2 rounded-lg font-semibold text-xs shadow transition-all ${
                 canSubmit()
-                  ? 'bg-gradient-to-r from-blue-600 via-purple-600 to-purple-700 text-white hover:shadow-purple-500/50 group focus:outline-none focus:ring-2 focus:ring-purple-500'
+                  ? 'bg-gradient-to-r from-blue-600 via-purple-600 to-purple-700 text-white hover:shadow-purple-500/30 focus:outline-none focus:ring-2 focus:ring-purple-400'
                   : 'bg-neutral-300 dark:bg-neutral-800 text-neutral-500 cursor-not-allowed'
               }`}
               aria-disabled={!canSubmit()}
             >
-              {canSubmit() && (
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/25 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 pointer-events-none"></div>
+              {loading ? (
+                <>
+                  <svg className="w-3.5 h-3.5 animate-spin inline mr-1" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2.5" strokeOpacity="0.22" />
+                    <path d="M22 12a10 10 0 00-10-10" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+                  </svg>
+                  Publishing...
+                </>
+              ) : (
+                <>
+                  <svg className="w-3.5 h-3.5 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                  </svg>
+                  Share Post
+                </>
               )}
-
-              <span className="relative flex items-center gap-2 select-none">
-                {loading ? (
-                  <>
-                    <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
-                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
-                      <path d="M22 12a10 10 0 00-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                    </svg>
-                    Publishing...
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                    </svg>
-                    Share Post
-                  </>
-                )}
-              </span>
             </motion.button>
           </div>
         </div>
