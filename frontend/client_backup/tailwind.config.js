@@ -3,6 +3,9 @@ module.exports = {
   darkMode: 'class', // class-based dark mode
   theme: {
     extend: {
+      fontFamily: {
+        sans: ['Outfit', 'sans-serif'], // This makes Outfit the default font
+      },
       colors: {
         primary: {
           50: '#f3f8ff',
@@ -48,7 +51,6 @@ module.exports = {
         card: '0 6px 24px rgba(16,24,40,0.08)',
         soft: '0 2px 10px rgba(16,24,40,0.06)'
       },
-      // ✨ ADD THESE ANIMATIONS BELOW ✨
       animation: {
         'fadeIn': 'fadeIn 0.5s ease-in-out',
         'fadeInUp': 'fadeInUp 0.6s ease-out',

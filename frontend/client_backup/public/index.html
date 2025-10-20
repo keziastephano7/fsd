@@ -15,12 +15,131 @@
     <!-- Preload critical fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@100;200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     
-    <title>Luna - Connect, Share, Discover</title>
+    <title>Luna</title>
+
+    <style>
+      /* Loading animation */
+      #root:empty {
+        position: relative;
+        min-height: 100vh;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        overflow: hidden;
+      }
+
+      #root:empty::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 60px;
+        height: 60px;
+        border: 3px solid rgba(255,255,255,0.3);
+        border-top: 3px solid rgba(255,255,255,0.8);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+
+      @keyframes spin {
+        0% { transform: translate(-50%, -50%) rotate(0deg); }
+        100% { transform: translate(-50%, -50%) rotate(360deg); }
+      }
+
+      /* Custom scrollbar */
+      ::-webkit-scrollbar {
+        width: 8px;
+      }
+
+      ::-webkit-scrollbar-track {
+        background: rgba(255,255,255,0.1);
+        border-radius: 4px;
+      }
+
+      ::-webkit-scrollbar-thumb {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 4px;
+      }
+
+      ::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+      }
+
+      /* Selection styles */
+      ::selection {
+        background: rgba(102, 126, 234, 0.3);
+        color: white;
+      }
+
+      /* Smooth scrolling */
+      html {
+        scroll-behavior: smooth;
+      }
+
+      /* Performance optimizations */
+      * {
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+    </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run Luna.</noscript>
+    <noscript>
+      <div style="
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-family: 'Outfit', sans-serif;
+        text-align: center;
+        padding: 20px;
+        z-index: 9999;
+      ">
+        <div>
+          <h1 style="font-size: 2rem; margin-bottom: 1rem; font-weight: 700;">Luna</h1>
+          <p style="font-size: 1.1rem; opacity: 0.9;">
+            You need to enable JavaScript to run Luna.<br>
+            Please enable JavaScript in your browser settings.
+          </p>
+        </div>
+      </div>
+    </noscript>
     <div id="root"></div>
+
+    <!-- Inline script for enhanced loading experience -->
+    <script>
+      // Add loading class to body for enhanced initial experience
+      document.body.classList.add('loading');
+      
+      // Remove loading class when React app mounts
+      window.addEventListener('load', function() {
+        document.body.classList.remove('loading');
+      });
+
+      // Enhanced error handling
+      window.addEventListener('error', function(e) {
+        console.log('Luna App Error:', e.error);
+      });
+
+      // Service Worker registration for PWA capabilities
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+          navigator.serviceWorker.register('%PUBLIC_URL%/sw.js')
+            .then(function(registration) {
+              console.log('SW registered: ', registration);
+            })
+            .catch(function(registrationError) {
+              console.log('SW registration failed: ', registrationError);
+            });
+        });
+      }
+    </script>
   </body>
 </html>

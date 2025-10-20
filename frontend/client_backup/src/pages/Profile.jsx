@@ -1,16 +1,18 @@
 import React, { useEffect, useState, useContext, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { createPortal } from 'react-dom';
 import API from '../api';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { AuthContext } from '../AuthContext';
 import { buildUrl } from '../utils/url';
 import OnlineStatus from '../components/OnlineStatus';
 import { useTheme } from '../ThemeContext';
+import CreatePost from '../components/CreatePost';
 
 export default function Profile() {
   const { id } = useParams();
   const { user } = useContext(AuthContext);
-  const { isDark } = useTheme(); // Get theme state
+  const { isDark } = useTheme();
   const navigate = useNavigate();
 
   const [profile, setProfile] = useState(null);
@@ -19,6 +21,8 @@ export default function Profile() {
   const [loadingPosts, setLoadingPosts] = useState(true);
   const [activeTab, setActiveTab] = useState('posts');
   const [hoveredPost, setHoveredPost] = useState(null);
+  const [showCreateOptions, setShowCreateOptions] = useState(false);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
   const mountedRef = useRef(true);
 
   useEffect(() => {
@@ -68,7 +72,6 @@ export default function Profile() {
       const pid = updated._id || updated.id;
       if (!pid) return;
       
-      // Update the post with the new data
       setPosts(prev => prev.map(p => {
         if ((p._id || p.id) === pid) {
           return { ...p, ...updated };
@@ -81,21 +84,45 @@ export default function Profile() {
     return () => window.removeEventListener('post:updated', onPostUpdated);
   }, []);
 
+  // Handle click outside create options
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (showCreateOptions && !e.target.closest('.create-options') && !e.target.closest('.create-button')) {
+        setShowCreateOptions(false);
+      }
+      if (createModalOpen && !e.target.closest('.create-post-modal')) {
+        setCreateModalOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showCreateOptions, createModalOpen]);
+
+  // Body scroll lock for modal
+  useEffect(() => {
+    if (createModalOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [createModalOpen]);
+
   const isOwner = !!user && (String(user.id || user._id) === String(id));
   const thoughts = posts.filter(p => !p.imageUrl);
   const mediaPosts = posts.filter(p => p.imageUrl);
 
-  // Safe likes array check
   const getLikesArray = (post) => {
     if (!post.likes) return [];
     if (Array.isArray(post.likes)) return post.likes;
     return [];
   };
 
-  // Handle like for thoughts - FIXED SYNC ISSUE
   const handleThoughtLike = async (thoughtId) => {
     try {
-      // Optimistic update first
       const thought = posts.find(p => (p._id || p.id) === thoughtId);
       if (!thought) return;
 
@@ -105,17 +132,14 @@ export default function Profile() {
         String(likeId) === String(userId)
       );
 
-      // Optimistically update UI
       setPosts(prev => prev.map(p => {
         if ((p._id || p.id) === thoughtId) {
           if (isCurrentlyLiked) {
-            // Remove like optimistically
             return { 
               ...p, 
               likes: currentLikes.filter(likeId => String(likeId) !== String(userId))
             };
           } else {
-            // Add like optimistically
             return { 
               ...p, 
               likes: [...currentLikes, userId]
@@ -125,16 +149,13 @@ export default function Profile() {
         return p;
       }));
 
-      // Make API call
       const res = await API.post(`/posts/${thoughtId}/like`);
       const responseData = res.data;
 
-      // Since backend only returns count, we need to refetch the post to get updated likes array
       try {
         const updatedPostRes = await API.get(`/posts/${thoughtId}`);
         const updatedPost = updatedPostRes.data;
         
-        // Update with actual data from backend
         setPosts(prev => prev.map(p => {
           if ((p._id || p.id) === thoughtId) {
             return { ...p, likes: updatedPost.likes || [] };
@@ -142,7 +163,6 @@ export default function Profile() {
           return p;
         }));
 
-        // Dispatch event for synchronization with Feed
         window.dispatchEvent(new CustomEvent('post:updated', { 
           detail: { 
             ...updatedPost,
@@ -153,13 +173,10 @@ export default function Profile() {
 
       } catch (fetchError) {
         console.error('Failed to fetch updated post:', fetchError);
-        // If refetch fails, at least we have the optimistic update
       }
 
     } catch (err) {
       console.error('Failed to like thought:', err);
-      
-      // Revert optimistic update on error
       setPosts(prev => prev.map(p => {
         if ((p._id || p.id) === thoughtId) {
           const originalThought = posts.find(post => (post._id || post.id) === thoughtId);
@@ -170,7 +187,135 @@ export default function Profile() {
     }
   };
 
-  // iOS-style Edit Profile Button
+  // Load posts function for refreshing after post creation
+  const loadPosts = async () => {
+    setLoadingPosts(true);
+    try {
+      const res = await API.get(`/posts?author=${id}`);
+      if (mountedRef.current) {
+        setPosts(Array.isArray(res.data) ? res.data : []);
+      }
+    } catch (err) {
+      console.error('Failed to load posts', err);
+    } finally {
+      if (mountedRef.current) setLoadingPosts(false);
+    }
+  };
+
+  // Handle post creation
+  const handlePostCreated = (post) => {
+    setCreateModalOpen(false);
+    setShowCreateOptions(false);
+    // Refresh posts after creation
+    loadPosts();
+    window.dispatchEvent(new CustomEvent('post:created', { detail: post }));
+  };
+
+  // Create Post Modal Portal - Using your exact CreatePost component styling
+  const CreatePostModalPortal = createModalOpen ? createPortal(
+    <AnimatePresence mode="wait">
+      <motion.div
+        key="create-post-modal"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.2, ease: "easeOut" }}
+        className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+        aria-modal="true"
+        role="dialog"
+        aria-label="Create new post"
+      >
+        <motion.div
+          initial={{ scale: 0.9, opacity: 0, y: 20 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          exit={{ scale: 0.9, opacity: 0, y: 20 }}
+          transition={{ type: "spring", damping: 25, stiffness: 300 }}
+          className="create-post-modal max-w-2xl w-full mx-auto relative"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <CreatePost
+            onCreated={handlePostCreated}
+          />
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>,
+    document.body
+  ) : null;
+
+  // Create Post/Thought Floating Action Button
+  const CreateButton = () => (
+    <div className="fixed bottom-8 right-8 z-40">
+      <AnimatePresence>
+        {showCreateOptions && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.8, y: 20 }}
+            className="absolute bottom-16 right-0 mb-4 space-y-3 create-options"
+          >
+            {/* Create Thought Option */}
+            <motion.button
+              whileHover={{ scale: 1.05, x: -5 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => {
+                setCreateModalOpen(true);
+                setShowCreateOptions(false);
+              }}
+              className="flex items-center gap-3 px-4 py-3 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200"
+            >
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div className="text-left">
+                <div className="font-semibold text-sm">Share Thought</div>
+                <div className="text-xs text-gray-500 dark:text-gray-400">Write what's on your mind</div>
+              </div>
+            </motion.button>
+
+            {/* Create Post Option */}
+            <motion.button
+              whileHover={{ scale: 1.05, x: -5 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => {
+                setCreateModalOpen(true);
+                setShowCreateOptions(false);
+              }}
+              className="flex items-center gap-3 px-4 py-3 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-white font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200"
+            >
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500 to-blue-600 flex items-center justify-center">
+                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <div className="text-left">
+                <div className="font-semibold text-sm">Create Post</div>
+                <div className="text-xs text-gray-500 dark:text-gray-400">Share a photo with caption</div>
+              </div>
+            </motion.button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Main Floating Button */}
+      <motion.button
+        whileHover={{ scale: 1.1 }}
+        whileTap={{ scale: 0.9 }}
+        onClick={() => setShowCreateOptions(!showCreateOptions)}
+        className="create-button w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 shadow-2xl text-white flex items-center justify-center relative z-50 border-2 border-white/20 backdrop-blur-sm"
+      >
+        <motion.div
+          animate={{ rotate: showCreateOptions ? 45 : 0 }}
+          transition={{ duration: 0.2 }}
+          className="text-2xl font-bold"
+        >
+          +
+        </motion.div>
+      </motion.button>
+    </div>
+  );
+
   const EditProfileButton = () => (
     <motion.button
       onClick={() => navigate(`/profile/${id}/edit`)}
@@ -182,7 +327,6 @@ export default function Profile() {
     </motion.button>
   );
 
-  // Instagram-style Post Grid Item
   const PostGridItem = ({ post, index }) => (
     <motion.div
       initial={{ opacity: 0, scale: 0.9 }}
@@ -200,7 +344,6 @@ export default function Profile() {
         />
       )}
       
-      {/* Instagram-style Hover Overlay */}
       <AnimatePresence>
         {(hoveredPost === (post._id || post.id)) && (
           <motion.div
@@ -229,7 +372,6 @@ export default function Profile() {
     </motion.div>
   );
 
-  // iOS-style Thought Card with user profile and synchronized likes
   const ThoughtCard = ({ thought, index }) => {
     const likesArray = getLikesArray(thought);
     const isLiked = likesArray.some(likeId => String(likeId) === String(user?.id || user?._id));
@@ -242,7 +384,6 @@ export default function Profile() {
         className="p-5 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200 cursor-pointer mb-3"
       >
         <div className="flex gap-3">
-          {/* User Avatar with Online Status */}
           <div className="flex-shrink-0 relative">
             <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-semibold text-sm shadow-sm relative">
               {profile?.avatarUrl ? (
@@ -255,7 +396,6 @@ export default function Profile() {
                 String(profile?.name || 'U').charAt(0).toUpperCase()
               )}
             </div>
-            {/* Online Status Badge */}
             <OnlineStatus 
               userId={id} 
               size="sm" 
@@ -264,7 +404,6 @@ export default function Profile() {
           </div>
 
           <div className="flex-1 min-w-0">
-            {/* User Info */}
             <div className="flex items-center gap-2 mb-2">
               <span className="font-bold text-gray-900 dark:text-gray-100 text-[15px]">
                 {profile?.name || 'User'}
@@ -275,12 +414,10 @@ export default function Profile() {
               </span>
             </div>
 
-            {/* Thought Content */}
             <p className="text-gray-900 dark:text-gray-100 text-[15px] leading-relaxed mb-3 whitespace-pre-wrap">
               {thought.caption || thought.content}
             </p>
 
-            {/* Engagement Metrics */}
             <div className="flex items-center gap-6 text-gray-500 dark:text-gray-400">
               <button 
                 onClick={(e) => {
@@ -328,20 +465,17 @@ export default function Profile() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
-      {/* Profile Header with iOS-style rounded corners */}
+      {/* Profile Header */}
       <div className="bg-white dark:bg-gray-800">
-        {/* Banner - Dynamic based on theme */}
         <div className={`h-48 rounded-b-3xl transition-all duration-500 ${
           isDark 
             ? 'bg-gradient-to-r from-gray-900 to-gray-700' 
             : 'bg-gradient-to-r from-purple-500 to-pink-300'
         }`} />
         
-        {/* Profile Info Card */}
         <div className="px-6 pb-8 -mt-16">
           <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
             <div className="flex flex-col sm:flex-row items-start gap-6">
-              {/* Avatar with Online Indicator */}
               <div className="relative -mt-20 sm:-mt-24">
                 <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-3xl border-4 border-white dark:border-gray-800 bg-white dark:bg-gray-800 shadow-lg overflow-hidden relative">
                   {loadingProfile ? (
@@ -359,7 +493,6 @@ export default function Profile() {
                   )}
                 </div>
                 
-                {/* Online Status Badge */}
                 <div className="absolute bottom-1 right-0">
                   <OnlineStatus 
                     userId={id} 
@@ -369,7 +502,6 @@ export default function Profile() {
                 </div>
               </div>
 
-              {/* User Info - Clean single bio display */}
               <div className="flex-1 space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between">
                   <div className="space-y-1">
@@ -390,13 +522,12 @@ export default function Profile() {
                   </div>
                   
                   {isOwner && (
-                    <div className="mt-3 sm:mt-0">
+                    <div className="mt-3 sm:mt-0 flex gap-3">
                       <EditProfileButton />
                     </div>
                   )}
                 </div>
 
-                {/* Single Bio Display */}
                 <p className="text-gray-900 dark:text-gray-100 leading-relaxed text-[15px]">
                   {loadingProfile ? (
                     <div className="h-4 w-full bg-gray-200 dark:bg-gray-700 rounded-2xl animate-pulse" />
@@ -405,7 +536,6 @@ export default function Profile() {
                   )}
                 </p>
 
-                {/* Stats with iOS-style rounded corners */}
                 <div className="flex items-center gap-6 text-sm pt-2">
                   <div className="flex items-center gap-1">
                     <span className="font-semibold text-gray-900 dark:text-white">{mediaPosts.length}</span>
@@ -437,7 +567,7 @@ export default function Profile() {
         </div>
       </div>
 
-      {/* Content Tabs with iOS-style rounded corners */}
+      {/* Content Tabs */}
       <div className="max-w-4xl mx-auto px-6 mt-8">
         <div className="flex justify-center bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-1 mb-8">
           <button
@@ -481,9 +611,14 @@ export default function Profile() {
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No Posts Yet</h3>
                 <p className="text-gray-600 dark:text-gray-400 mb-4">When you share photos, they'll appear here.</p>
                 {isOwner && (
-                  <Link to="/" className="text-sm text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 font-medium">
+                  <motion.button
+                    onClick={() => setCreateModalOpen(true)}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="text-sm bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-xl font-medium transition-colors"
+                  >
                     Share your first photo
-                  </Link>
+                  </motion.button>
                 )}
               </div>
             ) : (
@@ -511,9 +646,14 @@ export default function Profile() {
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No Thoughts Yet</h3>
                   <p className="text-gray-600 dark:text-gray-400 mb-4">Share your thoughts with the community.</p>
                   {isOwner && (
-                    <Link to="/" className="text-sm text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 font-medium">
+                    <motion.button
+                      onClick={() => setCreateModalOpen(true)}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      className="text-sm bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-xl font-medium transition-colors"
+                    >
                       Share your first thought
-                    </Link>
+                    </motion.button>
                   )}
                 </div>
               ) : (
@@ -527,6 +667,12 @@ export default function Profile() {
           )}
         </div>
       </div>
+
+      {/* Floating Create Button - Only show for profile owner */}
+      {isOwner && <CreateButton />}
+
+      {/* Create Post Modal - Now displays your exact CreatePost component */}
+      {CreatePostModalPortal}
     </div>
   );
 }

@@ -182,7 +182,6 @@ export default function CommentList({ postId, initial = [], onRemoved }) {
                         {(comment.author?.name || 'U').charAt(0).toUpperCase()}
                       </div>
                     )}
-                    <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white dark:border-gray-900"></div>
                   </div>
 
                   {/* Content */}
