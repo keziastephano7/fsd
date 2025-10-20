@@ -8,15 +8,14 @@ Prerequisites:
 
 Backend
 1. cd backend
-2. cp .env.example .env
-3. npm install
-4. npm start
+2. npm install
+3. npm start -- --reset-cache
    - Server runs at http://localhost:5000
 
 Frontend
 1. cd frontend/client
 2. npm install
-3. npm start
+3. npm start -- --reset-cache
    - App runs at http://localhost:3000
 
 Notes
