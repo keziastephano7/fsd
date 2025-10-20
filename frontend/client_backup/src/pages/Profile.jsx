@@ -5,10 +5,12 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { AuthContext } from '../AuthContext';
 import { buildUrl } from '../utils/url';
 import OnlineStatus from '../components/OnlineStatus';
+import { useTheme } from '../ThemeContext';
 
 export default function Profile() {
   const { id } = useParams();
   const { user } = useContext(AuthContext);
+  const { isDark } = useTheme(); // Get theme state
   const navigate = useNavigate();
 
   const [profile, setProfile] = useState(null);
@@ -174,7 +176,7 @@ export default function Profile() {
       onClick={() => navigate(`/profile/${id}/edit`)}
       whileHover={{ scale: 1.02 }}
       whileTap={{ scale: 0.98 }}
-      className="px-5 py-2.5 rounded-2xl font-medium bg-white border border-gray-300 text-gray-900 hover:bg-gray-50 transition-all duration-200 shadow-sm"
+      className="px-5 py-2.5 rounded-2xl font-medium bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-600 transition-all duration-200 shadow-sm"
     >
       Edit Profile
     </motion.button>
@@ -186,7 +188,7 @@ export default function Profile() {
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ delay: index * 0.1 }}
-      className="relative aspect-square bg-gray-100 rounded-2xl overflow-hidden group cursor-pointer"
+      className="relative aspect-square bg-gray-100 dark:bg-gray-700 rounded-2xl overflow-hidden group cursor-pointer"
       onMouseEnter={() => setHoveredPost(post._id || post.id)}
       onMouseLeave={() => setHoveredPost(null)}
     >
@@ -237,7 +239,7 @@ export default function Profile() {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: index * 0.1 }}
-        className="p-5 bg-white rounded-2xl border border-gray-200 hover:bg-gray-50 transition-colors duration-200 cursor-pointer mb-3"
+        className="p-5 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200 cursor-pointer mb-3"
       >
         <div className="flex gap-3">
           {/* User Avatar with Online Status */}
@@ -253,41 +255,46 @@ export default function Profile() {
                 String(profile?.name || 'U').charAt(0).toUpperCase()
               )}
             </div>
-
+            {/* Online Status Badge */}
+            <OnlineStatus 
+              userId={id} 
+              size="sm" 
+              align="bottom-right"
+            />
           </div>
 
           <div className="flex-1 min-w-0">
             {/* User Info */}
             <div className="flex items-center gap-2 mb-2">
-              <span className="font-bold text-gray-900 text-[15px]">
+              <span className="font-bold text-gray-900 dark:text-gray-100 text-[15px]">
                 {profile?.name || 'User'}
               </span>
-              <span className="text-gray-500 text-sm">·</span>
-              <span className="text-gray-500 text-sm">
+              <span className="text-gray-500 dark:text-gray-400 text-sm">·</span>
+              <span className="text-gray-500 dark:text-gray-400 text-sm">
                 @{profile?.username || profile?.email?.split('@')[0] || 'user'}
               </span>
             </div>
 
             {/* Thought Content */}
-            <p className="text-gray-900 text-[15px] leading-relaxed mb-3 whitespace-pre-wrap">
+            <p className="text-gray-900 dark:text-gray-100 text-[15px] leading-relaxed mb-3 whitespace-pre-wrap">
               {thought.caption || thought.content}
             </p>
 
             {/* Engagement Metrics */}
-            <div className="flex items-center gap-6 text-gray-500">
+            <div className="flex items-center gap-6 text-gray-500 dark:text-gray-400">
               <button 
                 onClick={(e) => {
                   e.stopPropagation();
                   handleThoughtLike(thought._id || thought.id);
                 }}
                 className={`flex items-center gap-1 group transition-colors ${
-                  isLiked ? 'text-red-500' : 'hover:text-red-500'
+                  isLiked ? 'text-red-500' : 'hover:text-red-500 dark:hover:text-red-400'
                 }`}
               >
                 <motion.div 
                   whileTap={{ scale: 0.9 }}
                   className={`p-1 rounded-full transition-colors ${
-                    isLiked ? 'bg-red-100' : 'group-hover:bg-red-50'
+                    isLiked ? 'bg-red-100 dark:bg-red-900/30' : 'group-hover:bg-red-50 dark:group-hover:bg-red-900/20'
                   }`}
                 >
                   <svg 
@@ -304,8 +311,8 @@ export default function Profile() {
                 </span>
               </button>
 
-              <button className="flex items-center gap-1 group hover:text-blue-500 transition-colors">
-                <div className="p-1 rounded-full group-hover:bg-blue-50">
+              <button className="flex items-center gap-1 group hover:text-blue-500 dark:hover:text-blue-400 transition-colors">
+                <div className="p-1 rounded-full group-hover:bg-blue-50 dark:group-hover:bg-blue-900/20">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                   </svg>
@@ -320,21 +327,25 @@ export default function Profile() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
       {/* Profile Header with iOS-style rounded corners */}
-      <div className="bg-white">
-        {/* Banner */}
-        <div className="h-48 bg-gradient-to-r from-gray-900 to-gray-700 rounded-b-3xl" />
+      <div className="bg-white dark:bg-gray-800">
+        {/* Banner - Dynamic based on theme */}
+        <div className={`h-48 rounded-b-3xl transition-all duration-500 ${
+          isDark 
+            ? 'bg-gradient-to-r from-gray-900 to-gray-700' 
+            : 'bg-gradient-to-r from-purple-500 to-pink-300'
+        }`} />
         
         {/* Profile Info Card */}
         <div className="px-6 pb-8 -mt-16">
-          <div className="bg-white rounded-3xl shadow-sm border border-gray-200 p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
             <div className="flex flex-col sm:flex-row items-start gap-6">
               {/* Avatar with Online Indicator */}
               <div className="relative -mt-20 sm:-mt-24">
-                <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-3xl border-4 border-white bg-white shadow-lg overflow-hidden relative">
+                <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-3xl border-4 border-white dark:border-gray-800 bg-white dark:bg-gray-800 shadow-lg overflow-hidden relative">
                   {loadingProfile ? (
-                    <div className="w-full h-full bg-gray-200 animate-pulse" />
+                    <div className="w-full h-full bg-gray-200 dark:bg-gray-700 animate-pulse" />
                   ) : profile?.avatarUrl ? (
                     <img
                       src={buildUrl(profile.avatarUrl)}
@@ -347,7 +358,8 @@ export default function Profile() {
                     </div>
                   )}
                 </div>
-                {/* Online Status */}
+                
+                {/* Online Status Badge */}
                 <div className="absolute bottom-1 right-0">
                   <OnlineStatus 
                     userId={id} 
@@ -361,16 +373,16 @@ export default function Profile() {
               <div className="flex-1 space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between">
                   <div className="space-y-1">
-                    <h1 className="text-2xl font-bold text-gray-900">
+                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
                       {loadingProfile ? (
-                        <div className="h-7 w-48 bg-gray-200 rounded-2xl animate-pulse" />
+                        <div className="h-7 w-48 bg-gray-200 dark:bg-gray-700 rounded-2xl animate-pulse" />
                       ) : (
                         profile?.name || 'Unnamed User'
                       )}
                     </h1>
-                    <p className="text-gray-500 text-lg">
+                    <p className="text-gray-500 dark:text-gray-400 text-lg">
                       {loadingProfile ? (
-                        <div className="h-5 w-32 bg-gray-200 rounded-2xl animate-pulse" />
+                        <div className="h-5 w-32 bg-gray-200 dark:bg-gray-700 rounded-2xl animate-pulse" />
                       ) : (
                         `@${profile?.username || profile?.email?.split('@')[0] || 'user'}`
                       )}
@@ -385,9 +397,9 @@ export default function Profile() {
                 </div>
 
                 {/* Single Bio Display */}
-                <p className="text-gray-900 leading-relaxed text-[15px]">
+                <p className="text-gray-900 dark:text-gray-100 leading-relaxed text-[15px]">
                   {loadingProfile ? (
-                    <div className="h-4 w-full bg-gray-200 rounded-2xl animate-pulse" />
+                    <div className="h-4 w-full bg-gray-200 dark:bg-gray-700 rounded-2xl animate-pulse" />
                   ) : (
                     profile?.bio || 'No bio yet'
                   )}
@@ -396,25 +408,25 @@ export default function Profile() {
                 {/* Stats with iOS-style rounded corners */}
                 <div className="flex items-center gap-6 text-sm pt-2">
                   <div className="flex items-center gap-1">
-                    <span className="font-semibold text-gray-900">{mediaPosts.length}</span>
-                    <span className="text-gray-600">posts</span>
+                    <span className="font-semibold text-gray-900 dark:text-white">{mediaPosts.length}</span>
+                    <span className="text-gray-600 dark:text-gray-400">posts</span>
                   </div>
                   <div className="flex items-center gap-1">
-                    <span className="font-semibold text-gray-900">{profile?.followers?.length || 0}</span>
-                    <span className="text-gray-600">followers</span>
+                    <span className="font-semibold text-gray-900 dark:text-white">{profile?.followers?.length || 0}</span>
+                    <span className="text-gray-600 dark:text-gray-400">followers</span>
                   </div>
                   <div className="flex items-center gap-1">
-                    <span className="font-semibold text-gray-900">{thoughts.length}</span>
-                    <span className="text-gray-600">thoughts</span>
+                    <span className="font-semibold text-gray-900 dark:text-white">{thoughts.length}</span>
+                    <span className="text-gray-600 dark:text-gray-400">thoughts</span>
                   </div>
                 </div>
 
                 {!isOwner && (
                   <div className="flex gap-3 pt-2">
-                    <button className="px-5 py-2 bg-black text-white rounded-2xl text-sm font-medium hover:bg-gray-800 transition-colors shadow-sm">
+                    <button className="px-5 py-2 bg-black dark:bg-white text-white dark:text-black rounded-2xl text-sm font-medium hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors shadow-sm">
                       Follow
                     </button>
-                    <button className="px-5 py-2 border border-gray-300 text-gray-900 rounded-2xl text-sm font-medium hover:bg-gray-50 transition-colors shadow-sm">
+                    <button className="px-5 py-2 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 rounded-2xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm">
                       Message
                     </button>
                   </div>
@@ -427,13 +439,13 @@ export default function Profile() {
 
       {/* Content Tabs with iOS-style rounded corners */}
       <div className="max-w-4xl mx-auto px-6 mt-8">
-        <div className="flex justify-center bg-white rounded-2xl shadow-sm border border-gray-200 p-1 mb-8">
+        <div className="flex justify-center bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-1 mb-8">
           <button
             onClick={() => setActiveTab('posts')}
             className={`px-8 py-3 font-medium text-sm rounded-2xl transition-colors flex-1 text-center ${
               activeTab === 'posts'
-                ? 'bg-gray-100 text-gray-900 shadow-sm'
-                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                ? 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
             }`}
           >
             POSTS
@@ -442,8 +454,8 @@ export default function Profile() {
             onClick={() => setActiveTab('thoughts')}
             className={`px-8 py-3 font-medium text-sm rounded-2xl transition-colors flex-1 text-center ${
               activeTab === 'thoughts'
-                ? 'bg-gray-100 text-gray-900 shadow-sm'
-                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                ? 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
             }`}
           >
             THOUGHTS
@@ -456,20 +468,20 @@ export default function Profile() {
             loadingPosts ? (
               <div className="grid grid-cols-3 gap-4">
                 {[1, 2, 3, 4, 5, 6].map(i => (
-                  <div key={i} className="aspect-square bg-gray-200 rounded-2xl animate-pulse" />
+                  <div key={i} className="aspect-square bg-gray-200 dark:bg-gray-700 rounded-2xl animate-pulse" />
                 ))}
               </div>
             ) : mediaPosts.length === 0 ? (
-              <div className="text-center py-16 bg-white rounded-3xl border border-gray-200 shadow-sm">
-                <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gray-100 flex items-center justify-center">
+              <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-3xl border border-gray-200 dark:border-gray-700 shadow-sm">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
                   <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">No Posts Yet</h3>
-                <p className="text-gray-600 mb-4">When you share photos, they'll appear here.</p>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No Posts Yet</h3>
+                <p className="text-gray-600 dark:text-gray-400 mb-4">When you share photos, they'll appear here.</p>
                 {isOwner && (
-                  <Link to="/" className="text-sm text-blue-500 hover:text-blue-600 font-medium">
+                  <Link to="/" className="text-sm text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 font-medium">
                     Share your first photo
                   </Link>
                 )}
@@ -486,20 +498,20 @@ export default function Profile() {
               {loadingPosts ? (
                 <div className="space-y-4">
                   {[1, 2, 3].map(i => (
-                    <div key={i} className="h-20 bg-gray-200 rounded-2xl animate-pulse" />
+                    <div key={i} className="h-20 bg-gray-200 dark:bg-gray-700 rounded-2xl animate-pulse" />
                   ))}
                 </div>
               ) : thoughts.length === 0 ? (
-                <div className="text-center py-16 bg-white rounded-3xl border border-gray-200 shadow-sm">
-                  <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gray-100 flex items-center justify-center">
+                <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-3xl border border-gray-200 dark:border-gray-700 shadow-sm">
+                  <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
                     <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   </div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No Thoughts Yet</h3>
-                  <p className="text-gray-600 mb-4">Share your thoughts with the community.</p>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No Thoughts Yet</h3>
+                  <p className="text-gray-600 dark:text-gray-400 mb-4">Share your thoughts with the community.</p>
                   {isOwner && (
-                    <Link to="/" className="text-sm text-blue-500 hover:text-blue-600 font-medium">
+                    <Link to="/" className="text-sm text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 font-medium">
                       Share your first thought
                     </Link>
                   )}

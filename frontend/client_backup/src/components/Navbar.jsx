@@ -7,6 +7,10 @@ import { buildUrl } from '../utils/url';
 import SearchBar from './SearchBar';
 import CreatePost from './CreatePost';
 
+// dark mode
+import ThemeToggle from './ThemeToggle'; // Add this import
+import { useTheme } from '../ThemeContext'; // Add this import
+
 // Enhanced UserAvatar with better loading states
 function UserAvatar({ user, size = "md" }) {
   const fallbackAvatar = '/images/default-avatar.png';
@@ -59,6 +63,8 @@ export default function Navbar() {
   const location = useLocation();
   const profileMenuRef = useRef(null);
   const mobileMenuRef = useRef(null);
+
+  const { isDark } = useTheme(); 
 
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -225,13 +231,16 @@ export default function Navbar() {
               Luna
             </motion.span>
           </Link>
-          
+
           {/* Navigation Items */}
           <div className="flex items-center gap-2">
             {user ? (
               <>
                 {/* Desktop Navigation */}
                 <div className="hidden md:flex items-center gap-3">
+                  {/* Theme Toggle - Add this */}
+                  <ThemeToggle size="sm" />
+                  
                   <SearchBar />
                   
                   {/* Notifications */}
@@ -360,6 +369,9 @@ export default function Navbar() {
 
                 {/* Mobile Navigation */}
                 <div className="flex md:hidden items-center gap-2">
+                  {/* Theme Toggle for mobile */}
+                  <ThemeToggle size="sm" />
+                  
                   <SearchBar />
                   
                   <motion.button
@@ -398,6 +410,9 @@ export default function Navbar() {
             ) : (
               // Auth Buttons for non-logged in users
               <div className="flex items-center gap-3">
+                {/* Theme Toggle for logged out users */}
+                <ThemeToggle size="sm" />
+                
                 <Link
                   to="/login"
                   className="px-5 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors duration-200"
@@ -411,6 +426,7 @@ export default function Navbar() {
                   Sign Up
                 </Link>
               </div>
+              
             )}
           </div>
         </div>
