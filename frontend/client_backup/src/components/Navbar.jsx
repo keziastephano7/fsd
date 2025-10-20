@@ -209,11 +209,13 @@ export default function Navbar() {
           >
             <motion.div 
               whileHover={{ scale: 1.05, rotate: 5 }}
-              className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg bg-gradient-to-br from-blue-500 via-purple-600 to-pink-500"
+              className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg bg-gradient-to-br from-blue-500 via-purple-600 to-pink-500 group-hover:shadow-xl group-hover:shadow-purple-500/30 transition-all duration-300"
             >
-              <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M21.6 15.6c-.3-.4-.8-.6-1.3-.6h-2.5c-.5 0-1 .2-1.3.6l-1.9 2.5c-.3.4-.8.6-1.3.6H9.7c-.5 0-1-.2-1.3-.6l-1.9-2.5c-.3-.4-.8-.6-1.3-.6H2.7c-.5 0-1 .2-1.3.6l-.7.9c-.3.4-.3.9 0 1.3l8.3 10.8c.3.4.8.6 1.3.6h11.4c.5 0 1-.2 1.3-.6l.7-.9c.3-.4.3-.9 0-1.3l-1.8-2.4zM12 0C7.6 0 4 3.6 4 8s3.6 8 8 8 8-3.6 8-8-3.6-8-8-8z"/>
-              </svg>
+              <img 
+                src="/moon.svg" 
+                alt="Luna Logo" 
+                className="w-6 h-6 filter brightness-0 invert" // Makes the SVG white
+              />
             </motion.div>
             <motion.span 
               initial={{ opacity: 0.9 }}
@@ -223,7 +225,7 @@ export default function Navbar() {
               Luna
             </motion.span>
           </Link>
-
+          
           {/* Navigation Items */}
           <div className="flex items-center gap-2">
             {user ? (

@@ -8,6 +8,7 @@ import EditPost from './EditPost';
 import { AuthContext } from '../AuthContext';
 import { buildUrl } from '../utils/url';
 import TagChip from './TagChip';
+import OnlineStatus from '../components/OnlineStatus';
 
 export default function PostCard({ post, onUpdate, disableMenu = false, isModal, showCommentsDefault = false }) {
   const [showComments, setShowComments] = useState(showCommentsDefault);
@@ -112,22 +113,30 @@ export default function PostCard({ post, onUpdate, disableMenu = false, isModal,
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0 }}
         className={`bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden transition-all duration-300 w-full
-          ${isModal ? "max-w-lg mx-auto" : "max-w-2xl mx-auto"} hover:shadow-xl`} // Enhanced shadow and hover
+          ${isModal ? "max-w-lg mx-auto" : "max-w-2xl mx-auto"} hover:shadow-xl`}
       >
         {/* Header - Enhanced Design */}
         <div className="flex items-center justify-between p-4 border-b border-gray-100">
           <Link to={authorLink} className="flex items-center gap-3 flex-1 min-w-0 group">
-            {avatar ? (
-              <img 
-                src={avatar} 
-                alt={`${post.author?.name || 'User'} avatar`} 
-                className="w-10 h-10 rounded-full object-cover ring-2 ring-gray-200 group-hover:ring-blue-300 transition-all duration-300" 
+            <div className="relative">
+              {avatar ? (
+                <img 
+                  src={avatar} 
+                  alt={`${post.author?.name || 'User'} avatar`} 
+                  className="w-10 h-10 rounded-full object-cover ring-2 ring-gray-200 group-hover:ring-blue-300 transition-all duration-300" 
+                />
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm select-none ring-2 ring-gray-200 group-hover:ring-blue-300 transition-all duration-300">
+                  {post.author?.name?.charAt(0) || '?'}
+                </div>
+              )}
+              {/* Online Status Badge */}
+              <OnlineStatus 
+                userId={post.author?._id} 
+                size="sm" 
+                align="bottom-right"
               />
-            ) : (
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm select-none ring-2 ring-gray-200 group-hover:ring-blue-300 transition-all duration-300">
-                {post.author?.name?.charAt(0) || '?'}
-              </div>
-            )}
+            </div>
             <div className="min-w-0">
               <p className="font-semibold text-gray-900 text-sm group-hover:text-blue-600 transition-colors">
                 {post.author?.name || 'User'}
@@ -187,7 +196,7 @@ export default function PostCard({ post, onUpdate, disableMenu = false, isModal,
         {/* Image Section - Enhanced */}
         {post.imageUrl && (
           <div className="w-full bg-gray-50">
-            <div className="relative w-full" style={{ paddingTop: '75%' }}> {/* Better aspect ratio */}
+            <div className="relative w-full" style={{ paddingTop: '75%' }}>
               <img
                 src={buildUrl(post.imageUrl)}
                 alt={post.caption || 'Post image'}

@@ -4,6 +4,7 @@ import API from '../api';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { AuthContext } from '../AuthContext';
 import { buildUrl } from '../utils/url';
+import OnlineStatus from '../components/OnlineStatus';
 
 export default function Profile() {
   const { id } = useParams();
@@ -239,9 +240,9 @@ export default function Profile() {
         className="p-5 bg-white rounded-2xl border border-gray-200 hover:bg-gray-50 transition-colors duration-200 cursor-pointer mb-3"
       >
         <div className="flex gap-3">
-          {/* User Avatar */}
-          <div className="flex-shrink-0">
-            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-semibold text-sm shadow-sm">
+          {/* User Avatar with Online Status */}
+          <div className="flex-shrink-0 relative">
+            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-semibold text-sm shadow-sm relative">
               {profile?.avatarUrl ? (
                 <img
                   src={buildUrl(profile.avatarUrl)}
@@ -252,6 +253,7 @@ export default function Profile() {
                 String(profile?.name || 'U').charAt(0).toUpperCase()
               )}
             </div>
+
           </div>
 
           <div className="flex-1 min-w-0">
@@ -330,7 +332,7 @@ export default function Profile() {
             <div className="flex flex-col sm:flex-row items-start gap-6">
               {/* Avatar with Online Indicator */}
               <div className="relative -mt-20 sm:-mt-24">
-                <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-3xl border-4 border-white bg-white shadow-lg overflow-hidden">
+                <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-3xl border-4 border-white bg-white shadow-lg overflow-hidden relative">
                   {loadingProfile ? (
                     <div className="w-full h-full bg-gray-200 animate-pulse" />
                   ) : profile?.avatarUrl ? (
@@ -345,9 +347,14 @@ export default function Profile() {
                     </div>
                   )}
                 </div>
-                {isOwner && (
-                  <div className="absolute bottom-2 right-2 w-4 h-4 bg-green-500 rounded-full border-2 border-white shadow-sm" />
-                )}
+                {/* Online Status */}
+                <div className="absolute bottom-1 right-0">
+                  <OnlineStatus 
+                    userId={id} 
+                    size="lg" 
+                    align="bottom-right"
+                  />
+                </div>
               </div>
 
               {/* User Info - Clean single bio display */}
@@ -418,9 +425,9 @@ export default function Profile() {
         </div>
       </div>
 
-      {/* Content Tabs with iOS-style rounded corners - FIXED SPACING */}
-      <div className="max-w-4xl mx-auto px-6 mt-4"> {/* Added mt-8 for better spacing */}
-        <div className="flex justify-center bg-white rounded-2xl shadow-sm border border-gray-200 p-1 mb-8"> {/* Increased mb-8 */}
+      {/* Content Tabs with iOS-style rounded corners */}
+      <div className="max-w-4xl mx-auto px-6 mt-8">
+        <div className="flex justify-center bg-white rounded-2xl shadow-sm border border-gray-200 p-1 mb-8">
           <button
             onClick={() => setActiveTab('posts')}
             className={`px-8 py-3 font-medium text-sm rounded-2xl transition-colors flex-1 text-center ${
@@ -447,7 +454,7 @@ export default function Profile() {
         <div className="pb-8">
           {activeTab === 'posts' ? (
             loadingPosts ? (
-              <div className="grid grid-cols-3 gap-4"> {/* Increased gap */}
+              <div className="grid grid-cols-3 gap-4">
                 {[1, 2, 3, 4, 5, 6].map(i => (
                   <div key={i} className="aspect-square bg-gray-200 rounded-2xl animate-pulse" />
                 ))}
@@ -468,7 +475,7 @@ export default function Profile() {
                 )}
               </div>
             ) : (
-              <div className="grid grid-cols-3 gap-4"> {/* Increased gap */}
+              <div className="grid grid-cols-3 gap-4">
                 {mediaPosts.map((post, index) => (
                   <PostGridItem key={post._id || post.id} post={post} index={index} />
                 ))}
@@ -477,7 +484,7 @@ export default function Profile() {
           ) : (
             <div className="max-w-2xl mx-auto">
               {loadingPosts ? (
-                <div className="space-y-4"> {/* Increased spacing */}
+                <div className="space-y-4">
                   {[1, 2, 3].map(i => (
                     <div key={i} className="h-20 bg-gray-200 rounded-2xl animate-pulse" />
                   ))}
@@ -498,7 +505,7 @@ export default function Profile() {
                   )}
                 </div>
               ) : (
-                <div className="space-y-4"> {/* Increased spacing */}
+                <div className="space-y-4">
                   {thoughts.map((thought, index) => (
                     <ThoughtCard key={thought._id || thought.id} thought={thought} index={index} />
                   ))}
