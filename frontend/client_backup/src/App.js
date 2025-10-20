@@ -7,7 +7,7 @@ import Feed from './pages/Feed';
 import Profile from './pages/Profile';
 import EditProfile from './pages/EditProfile';
 import CreatePostPage from './pages/CreatePost';
-import './input.css';
+import './styles.css';
 import Navbar from './components/Navbar';
 import { AuthContext } from './AuthContext';
 import TagPage from './pages/TagPage';
