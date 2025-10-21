@@ -4,6 +4,9 @@ import { AuthContext } from '../AuthContext';
 import { motion } from 'framer-motion';
 import API from '../api'; // Use your API instance
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MIN_PASSWORD_LENGTH = 6;
+
 const Login = () => {
   const [formData, setFormData] = useState({
     email: '',
@@ -29,6 +32,15 @@ const Login = () => {
     setError('');
 
     try {
+      if (!EMAIL_REGEX.test(formData.email)) {
+        console.log(formData.email);
+        setError('Please enter a valid email');
+        return false;
+      }
+      if (formData.password.length < MIN_PASSWORD_LENGTH) {
+        setError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters`);
+        return false;
+      }
       // Use your existing API structure
       const res = await API.post('/auth/login', { 
         email: formData.email.trim(), 

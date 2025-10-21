@@ -4,6 +4,8 @@ import { AuthContext } from '../AuthContext';
 import { motion } from 'framer-motion';
 import API from '../api'; // Use your API instance
 
+const MIN_PASSWORD_LENGTH = 6;
+
 const Signup = () => {
   const [formData, setFormData] = useState({
     name: '',
@@ -29,6 +31,12 @@ const Signup = () => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
+    
+    if (formData.password.length < MIN_PASSWORD_LENGTH) {
+      setError('Password length should be atleast 6 characters');
+      setIsLoading(false);
+      return;
+    }
 
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
