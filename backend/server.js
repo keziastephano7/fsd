@@ -23,6 +23,7 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/posts', require('./routes/posts'));
 app.use('/api/posts/:postId/comments', require('./routes/comments'));
+app.use('/api/notifications', require('./routes/notifications'));
 
 
 const PORT = process.env.PORT || 5000;

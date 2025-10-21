@@ -5,6 +5,7 @@ const { body, validationResult } = require('express-validator');
 const auth = require('../middleware/auth');
 const Comment = require('../models/Comment');
 const Post = require('../models/Post');
+const Notification = require('../models/Notification');
 
 // POST /api/posts/:postId/comments  -> create comment (protected)
 router.post(
@@ -28,7 +29,25 @@ router.post(
       await comment.save();
       await comment.populate('author', '-password');
 
-      return res.status(201).json(comment);
+        // create notification for post author (don't notify self)
+        try {
+          if (String(post.author) !== String(req.userId)) {
+            const payload = {
+              type: 'comment',
+              actor: req.userId,
+              recipient: post.author,
+              post: postId,
+              comment: comment._id
+            };
+            console.debug('Creating notification for comment with payload:', payload);
+            const notif = await Notification.create(payload);
+            console.debug('Notification created:', notif && notif._id);
+          }
+        } catch (e) {
+          console.error('Failed to create notification for comment:', e && e.message ? e.message : e);
+        }
+
+        return res.status(201).json(comment);
     } catch (err) {
       console.error('Error creating comment:', err);
       return res.status(500).json({ message: 'Server error' });

@@ -13,6 +13,7 @@ import { AuthContext } from './AuthContext';
 import TagPage from './pages/TagPage';
 import { ThemeProvider } from './ThemeContext';
 import Landing from './pages/Landing'; // Add this import
+import PostPage from './pages/Post';
 
 function App() {
   const { user } = useContext(AuthContext);
@@ -26,6 +27,7 @@ function App() {
           <main className="container mx-auto px-4 sm:px-6 lg:px-8">
             <Routes>
               <Route path="/" element={user ? <Feed user={user} /> : <Landing />} />
+              <Route path="/posts/:id" element={<PostPage />} />
               <Route path="/signup" element={<Signup />}/>
               <Route path="/login" element={<Login />}/>
               <Route path="/profile/:id" element={<Profile />} />
