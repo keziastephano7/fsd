@@ -9,8 +9,14 @@ const fs = require('fs').promises;
 
 // Multer setup for avatars
 const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, 'uploads/avatars');
+  destination: async function (req, file, cb) {
+    const uploadPath = path.join(__dirname, '..', 'uploads', 'avatars');
+    try {
+      await fs.mkdir(uploadPath, { recursive: true }); // create folder if not exists
+      cb(null, uploadPath);
+    } catch (err) {
+      cb(err);
+    }
   },
   filename: function (req, file, cb) {
     cb(null, Date.now() + '-' + file.originalname);
