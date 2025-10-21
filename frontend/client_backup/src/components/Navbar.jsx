@@ -1,10 +1,12 @@
 import React, { useContext, useState, useEffect, useRef } from 'react';
+// import React, { useContext, useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AuthContext } from '../AuthContext';
 import { buildUrl } from '../utils/url';
 import SearchBar from './SearchBar';
+import API from '../api';
 import CreatePost from './CreatePost';
 
 // dark mode
@@ -69,6 +71,9 @@ export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [isHoveringCreate, setIsHoveringCreate] = useState(false);
 
@@ -83,7 +88,50 @@ export default function Navbar() {
   useEffect(() => {
     setIsMenuOpen(false);
     setIsProfileOpen(false);
+    setIsNotifOpen(false);
   }, [location]);
+
+  // fetch unread count periodically
+  useEffect(() => {
+    let mounted = true;
+    const getCount = async () => {
+      try {
+        const res = await API.get('/notifications/unread-count');
+        if (mounted) setUnreadCount(res.data.count || 0);
+      } catch (e) {
+        // ignore (not logged in)
+      }
+    };
+    getCount();
+    const t = setInterval(getCount, 15000); // refresh every 15s
+    return () => { mounted = false; clearInterval(t); };
+  }, []);
+
+  const openNotifications = async () => {
+    setIsNotifOpen((s) => !s);
+    if (!isNotifOpen) {
+      try {
+        const res = await API.get('/notifications');
+        const notifs = res.data || [];
+        setNotifications(notifs);
+
+        // mark unread notifications as read on the server
+        const unread = notifs.filter(n => !n.read).map(n => n._id);
+        if (unread.length > 0) {
+          try {
+            await Promise.all(unread.map(id => API.put(`/notifications/${id}/read`)));
+            // mark them read locally
+            setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+          } catch (e) {
+            console.error('Failed to mark notifications read', e);
+          }
+        }
+        setUnreadCount(0);
+      } catch (e) {
+        console.error('Failed to load notifications', e);
+      }
+    }
+  };
 
   // Click outside handlers
   useEffect(() => {
@@ -250,13 +298,45 @@ export default function Navbar() {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     aria-label="Notifications"
+                    onClick={openNotifications}
                     className="relative p-2.5 rounded-xl text-gray-600 dark:text-gray-300 hover:bg-gray-100/50 dark:hover:bg-gray-800/50 transition-colors duration-200 backdrop-blur-sm border border-transparent hover:border-gray-200/30 dark:hover:border-gray-600/30"
                   >
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
                         d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                     </svg>
-                    <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white/80 dark:ring-gray-900/80" />
+                    {unreadCount > 0 && (
+                      <span className="absolute top-1.5 right-1.5 min-w-[18px] h-4 inline-flex items-center justify-center px-1.5 text-[11px] bg-red-500 text-white rounded-full ring-2 ring-white/80 dark:ring-gray-900/80">
+                        {unreadCount}
+                      </span>
+                    )}
+                    {/* Notification dropdown */}
+                    {isNotifOpen && (
+                      <div className="absolute right-0 mt-3 w-80 bg-white/95 dark:bg-gray-800/95 rounded-xl shadow-2xl border border-gray-200/50 dark:border-gray-600/50 overflow-hidden z-50 backdrop-blur-xl">
+                        <div className="p-3 text-sm font-semibold border-b border-gray-100/50 dark:border-gray-600/50">Notifications</div>
+                        <div className="max-h-72 overflow-y-auto">
+                          {notifications.length === 0 && (
+                            <div className="p-3 text-xs text-gray-500">No notifications</div>
+                          )}
+                          {notifications.map((n) => (
+                            <div key={n._id} onClick={() => { 
+                                const dest = `/posts/${n.post?._id || n.post}`;
+                                console.debug('Notification click:', n, 'n.post ->', n.post, 'navigate to', dest);
+                                setIsNotifOpen(false); 
+                                navigate(dest);
+                              }} className="flex items-start gap-3 p-3 hover:bg-gray-50 dark:hover:bg-gray-700/40 cursor-pointer">
+                              <img src={n.actor?.avatarUrl || '/images/default-avatar.png'} alt={n.actor?.name} className="w-9 h-9 rounded-full object-cover" />
+                              <div className="flex-1">
+                                <div className="text-sm text-gray-800 dark:text-gray-200">{
+                                  n.type === 'like' ? `${n.actor?.name || 'Someone'} liked your post` : `${n.actor?.name || 'Someone'} commented: ${n.comment?.text || ''}`
+                                }</div>
+                                <div className="text-xs text-gray-500 mt-1">{new Date(n.createdAt).toLocaleString()}</div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </motion.button>
 
                   {/* Create Post Button */}

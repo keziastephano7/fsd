@@ -179,14 +179,28 @@ router.post('/:id/like', auth, async (req, res) => {
     const post = await Post.findById(req.params.id);
     if (!post) return res.status(404).json({ message: 'Post not found' });
     const userId = req.userId;
-    const index = post.likes.findIndex(id => String(id) === userId);
-    if (index === -1) {
-      post.likes.push(userId);
+
+    // Check current state
+    const alreadyLiked = post.likes.some(id => String(id) === userId);
+    let updatedPost;
+    if (!alreadyLiked) {
+      updatedPost = await Post.findByIdAndUpdate(req.params.id, { $addToSet: { likes: userId } }, { new: true });
+      try {
+        if (String(post.author) !== String(req.userId)) {
+          const Notification = require('../models/Notification');
+          const payload = { type: 'like', actor: req.userId, recipient: post.author, post: req.params.id };
+          console.debug('Creating notification for like with payload:', payload);
+          const notif = await Notification.create(payload);
+          console.debug('Like notification created:', notif && notif._id);
+        }
+      } catch (e) {
+        console.error('Failed to create notification for like:', e && e.message ? e.message : e);
+      }
+      return res.json({ likes: updatedPost.likes.length, liked: true });
     } else {
-      post.likes.splice(index, 1);
+      updatedPost = await Post.findByIdAndUpdate(req.params.id, { $pull: { likes: userId } }, { new: true });
+      return res.json({ likes: updatedPost.likes.length, liked: false });
     }
-    await post.save();
-    res.json({ likes: post.likes.length, liked: index === -1 });
   } catch (err) {
     console.error('Error toggling like:', err);
     res.status(500).json({ message: 'Server error' });
