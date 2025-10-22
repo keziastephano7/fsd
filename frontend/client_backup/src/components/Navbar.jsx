@@ -33,8 +33,15 @@ function UserAvatar({ user, size = "md" }) {
   };
 
   useEffect(() => {
-    setSrc(buildUrl(user?.avatarUrl) || fallbackAvatar);
-    setIsLoading(true);
+    if (user?.avatarUrl) {
+      setSrc(buildUrl(user.avatarUrl));
+      setIsLoading(false); // Assume image is ready
+    } else {
+      setSrc(fallbackAvatar);
+      setIsLoading(true);
+    }
+    // setSrc(buildUrl(user?.avatarUrl) || fallbackAvatar);
+    // setIsLoading(true);
   }, [user]);
 
   return (
@@ -370,6 +377,7 @@ export default function Navbar() {
                       aria-haspopup="true"
                     >
                       {/* Only show user avatar in the trigger button */}
+                      {console.log('user in button:', user)}
                       <div className="flex items-center gap-2">
                         <UserAvatar user={user} size="sm" />
                         <span className="hidden lg:block text-sm font-medium text-gray-700 dark:text-gray-200 max-w-[100px] truncate">
