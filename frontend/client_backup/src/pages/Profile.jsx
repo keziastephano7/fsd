@@ -396,11 +396,7 @@ export default function Profile() {
                 String(profile?.name || 'U').charAt(0).toUpperCase()
               )}
             </div>
-            <OnlineStatus 
-              userId={id} 
-              size="sm" 
-              align="bottom-right"
-            />
+
           </div>
 
           <div className="flex-1 min-w-0">
