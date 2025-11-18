@@ -8,18 +8,20 @@ const User = require('../models/User');
 const fs = require('fs').promises;
 const { body, validationResult } = require('express-validator');
 
-// Multer setup
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, 'uploads/');
-  },
-  filename: function (req, file, cb) {
-    cb(null, Date.now() + '-' + file.originalname);
-  }
-});
+const imagekit = require('../config/imagekit');  
+
+// // Multer setup
+// const storage = multer.diskStorage({
+//   destination: function (req, file, cb) {
+//     cb(null, 'uploads/');
+//   },
+//   filename: function (req, file, cb) {
+//     cb(null, Date.now() + '-' + file.originalname);
+//   }
+// });
 
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
   fileFilter: (req, file, cb) => {
     const allowed = /jpeg|jpg|png|gif/;
@@ -47,7 +49,16 @@ router.post(
 
     try {
       const { caption } = req.body;
-      const imageUrl = req.file ? `/uploads/${req.file.filename}` : '';
+      let imageUrl = '';
+
+      if (req.file) {
+        const uploadResponse = await imagekit.upload({
+          file: req.file.buffer.toString('base64'),
+          fileName: `${Date.now()}-${req.file.originalname}`,
+          folder: '/posts'
+        });
+        imageUrl = uploadResponse.url;
+      }
       
       // ⭐ Parse tags from request
       let tags = [];
@@ -124,16 +135,23 @@ router.put('/:id', auth, upload.single('image'), async (req, res) => {
       }
     }
 
+    // if (req.file) {
+    //   if (post.imageUrl) {
+    //     try {
+    //       const oldPath = path.join(__dirname, '..', post.imageUrl.replace(/^\//, ''));
+    //       await fs.unlink(oldPath).catch(() => {});
+    //     } catch (err) {
+    //       // ignore
+    //     }
+    //   }
+    //   post.imageUrl = `/uploads/${req.file.filename}`;
     if (req.file) {
-      if (post.imageUrl) {
-        try {
-          const oldPath = path.join(__dirname, '..', post.imageUrl.replace(/^\//, ''));
-          await fs.unlink(oldPath).catch(() => {});
-        } catch (err) {
-          // ignore
-        }
-      }
-      post.imageUrl = `/uploads/${req.file.filename}`;
+      const uploadResponse = await imagekit.upload({
+        file: req.file.buffer.toString('base64'),
+        fileName: `${Date.now()}-${req.file.originalname}`,
+        folder: '/posts'
+      });
+      post.imageUrl = uploadResponse.url;
     }
 
     await post.save();
@@ -155,15 +173,15 @@ router.delete('/:id', auth, async (req, res) => {
     if (String(post.author) !== String(req.userId)) 
       return res.status(403).json({ message: 'Forbidden: only author can delete this post' });
 
-    if (post.imageUrl) {
-      try {
-        const relativePath = post.imageUrl.replace(/^\//, '');
-        const imagePath = path.join(__dirname, '..', relativePath);
-        await fs.unlink(imagePath).catch(() => {});
-      } catch (err) {
-        // ignore
-      }
-    }
+    // if (post.imageUrl) {
+    //   try {
+    //     const relativePath = post.imageUrl.replace(/^\//, '');
+    //     const imagePath = path.join(__dirname, '..', relativePath);
+    //     await fs.unlink(imagePath).catch(() => {});
+    //   } catch (err) {
+    //     // ignore
+    //   }
+    // }
 
     await Post.findByIdAndDelete(postId);
     return res.json({ message: 'Post deleted' });

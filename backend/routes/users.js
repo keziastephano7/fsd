@@ -4,27 +4,31 @@ const auth = require('../middleware/auth');
 const User = require('../models/User');
 
 const multer = require('multer');
-const path = require('path');
-const fs = require('fs').promises;
 
-// Multer setup for avatars
-const storage = multer.diskStorage({
-  destination: async function (req, file, cb) {
-    const uploadPath = path.join(__dirname, '..', 'uploads', 'avatars');
-    try {
-      await fs.mkdir(uploadPath, { recursive: true }); // create folder if not exists
-      cb(null, uploadPath);
-    } catch (err) {
-      cb(err);
-    }
-  },
-  filename: function (req, file, cb) {
-    cb(null, Date.now() + '-' + file.originalname);
-  }
-});
+const imagekit = require('../config/imagekit');
+
+
+// const path = require('path');
+// const fs = require('fs').promises;
+
+// // Multer setup for avatars
+// const storage = multer.diskStorage({
+//   destination: async function (req, file, cb) {
+//     const uploadPath = path.join(__dirname, '..', 'uploads', 'avatars');
+//     try {
+//       await fs.mkdir(uploadPath, { recursive: true }); // create folder if not exists
+//       cb(null, uploadPath);
+//     } catch (err) {
+//       cb(err);
+//     }
+//   },
+//   filename: function (req, file, cb) {
+//     cb(null, Date.now() + '-' + file.originalname);
+//   }
+// });
 
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 2 * 1024 * 1024 }, // 2MB
   fileFilter: (req, file, cb) => {
     const allowed = /jpeg|jpg|png/;
@@ -72,7 +76,41 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// PUT /api/users/:id - edit profile (protected)
+// // PUT /api/users/:id - edit profile (protected)
+// router.put('/:id', auth, upload.single('avatar'), async (req, res) => {
+//   try {
+//     if (req.userId !== req.params.id)
+//       return res.status(403).json({ message: 'Forbidden' });
+
+//     const user = await User.findById(req.params.id);
+//     if (!user) return res.status(404).json({ message: 'User not found' });
+
+//     // Update text fields
+//     if (req.body.name !== undefined) user.name = req.body.name;
+//     if (req.body.bio !== undefined) user.bio = req.body.bio;
+
+//     // If a new avatar was uploaded
+//     if (req.file) {
+//       if (user.avatarUrl) {
+//         try {
+//           const oldPath = path.join(__dirname, '..', user.avatarUrl.replace(/^\//, ''));
+//           await fs.unlink(oldPath).catch(() => {});
+//         } catch (err) {
+//           // ignore
+//         }
+//       }
+//       user.avatarUrl = `/uploads/avatars/${req.file.filename}`;
+//     }
+
+//     await user.save();
+//     res.json({ id: user._id, name: user.name, bio: user.bio, avatarUrl: user.avatarUrl });
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).json({ message: 'Server error' });
+//   }
+// });
+
+// 🧠 PUT /api/users/:id - edit profile (protected)
 router.put('/:id', auth, upload.single('avatar'), async (req, res) => {
   try {
     if (req.userId !== req.params.id)
@@ -85,24 +123,40 @@ router.put('/:id', auth, upload.single('avatar'), async (req, res) => {
     if (req.body.name !== undefined) user.name = req.body.name;
     if (req.body.bio !== undefined) user.bio = req.body.bio;
 
-    // If a new avatar was uploaded
+    // 🖼️ If a new avatar was uploaded
     if (req.file) {
-      if (user.avatarUrl) {
+      // Delete old avatar from ImageKit if exists (optional)
+      if (user.avatarFileId) {
         try {
-          const oldPath = path.join(__dirname, '..', user.avatarUrl.replace(/^\//, ''));
-          await fs.unlink(oldPath).catch(() => {});
+          await imagekit.deleteFile(user.avatarFileId);
         } catch (err) {
-          // ignore
+          console.warn('Old avatar delete failed:', err.message);
         }
       }
-      user.avatarUrl = `/uploads/avatars/${req.file.filename}`;
+
+      // Upload new avatar to ImageKit
+      const uploadResult = await imagekit.upload({
+        file: req.file.buffer.toString('base64'), // convert to base64
+        fileName: `${Date.now()}-${req.file.originalname}`,
+        folder: '/avatars', // optional folder in ImageKit
+      });
+
+      // Update user with new URL and file ID
+      user.avatarUrl = uploadResult.url;
+      user.avatarFileId = uploadResult.fileId; // for future deletion
     }
 
     await user.save();
-    res.json({ id: user._id, name: user.name, bio: user.bio, avatarUrl: user.avatarUrl });
+
+    res.json({
+      id: user._id,
+      name: user.name,
+      bio: user.bio,
+      avatarUrl: user.avatarUrl,
+    });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Server error' });
+    console.error('User update error:', err);
+    res.status(500).json({ message: 'Server error', error: err.message });
   }
 });
 

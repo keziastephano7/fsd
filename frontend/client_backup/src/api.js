@@ -1,7 +1,8 @@
 import axios from 'axios';
 
+// Use environment variable for backend base URL
 const API = axios.create({
-  baseURL: 'http://localhost:5000/api' // backend base
+  baseURL: `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api`
 });
 
 // helper to set auth token
