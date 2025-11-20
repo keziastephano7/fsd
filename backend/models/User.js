@@ -12,6 +12,10 @@ const UserSchema = new mongoose.Schema({
   isEmailVerified: { type: Boolean, default: false },
   emailVerificationOTP: { type: String, default: null },
   otpExpires: { type: Date, default: null }
+  ,
+  // Followers & Following
+  followers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  following: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }]
 }, { timestamps: true });
 
 module.exports = mongoose.model('User', UserSchema);

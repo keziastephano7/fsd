@@ -76,6 +76,86 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+// GET /api/users/:id/followers - list followers (owner or followers-only)
+const jwt = require('jsonwebtoken');
+
+function getViewerIdFromHeader(req) {
+  const authHeader = req.header('Authorization');
+  if (!authHeader) return null;
+  const token = authHeader.split(' ')[1];
+  if (!token) return null;
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    return decoded.userId;
+  } catch (e) {
+    return null;
+  }
+}
+
+router.get('/:id/followers', async (req, res) => {
+  try {
+    const targetId = req.params.id;
+    // Public: return followers with pagination
+    const user = await User.findById(targetId).select('followers');
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    // Pagination support: ?page=0&limit=20
+    const page = Math.max(0, parseInt(req.query.page || '0', 10));
+    const limit = Math.max(1, Math.min(100, parseInt(req.query.limit || '20', 10)));
+    const skip = page * limit;
+
+    const followerIds = (user.followers || []).map(id => String(id));
+    const total = followerIds.length;
+
+    const items = await User.find({ _id: { $in: followerIds } })
+      .select('name avatarUrl _id')
+      .skip(skip)
+      .limit(limit);
+
+    res.json({ items, total, page, limit });
+  } catch (err) {
+    console.error('Error fetching followers:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// GET /api/users/:id/following - list following (owner or followers-only)
+router.get('/:id/following', async (req, res) => {
+  try {
+    const targetId = req.params.id;
+    const user = await User.findById(targetId).select('followers');
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const viewerId = getViewerIdFromHeader(req);
+    const isOwner = viewerId && String(viewerId) === String(targetId);
+    const isFollower = viewerId && (user.followers || []).some(f => String(f) === String(viewerId));
+
+    if (!isOwner && !isFollower) {
+      return res.status(403).json({ private: true });
+    }
+
+    // Pagination support: ?page=0&limit=20
+    const page = Math.max(0, parseInt(req.query.page || '0', 10));
+    const limit = Math.max(1, Math.min(100, parseInt(req.query.limit || '20', 10)));
+    const skip = page * limit;
+
+    // get following ids from user.following
+    const full = await User.findById(targetId).select('following');
+    const followingIds = (full.following || []).map(id => String(id));
+    const total = followingIds.length;
+
+    const items = await User.find({ _id: { $in: followingIds } })
+      .select('name avatarUrl _id')
+      .skip(skip)
+      .limit(limit);
+
+    res.json({ items, total, page, limit });
+  } catch (err) {
+    console.error('Error fetching following:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // // PUT /api/users/:id - edit profile (protected)
 // router.put('/:id', auth, upload.single('avatar'), async (req, res) => {
 //   try {
@@ -156,6 +236,57 @@ router.put('/:id', auth, upload.single('avatar'), async (req, res) => {
     });
   } catch (err) {
     console.error('User update error:', err);
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+// PUT /api/users/:id/follow - follow a user
+router.put('/:id/follow', auth, async (req, res) => {
+  try {
+    const targetId = req.params.id;
+    const currentId = req.userId;
+
+    if (currentId === targetId) return res.status(400).json({ message: "Cannot follow yourself" });
+
+    const UserModel = User; // alias
+
+    // Use atomic operators to avoid duplicates
+    const [updatedTarget, updatedCurrent] = await Promise.all([
+      UserModel.findByIdAndUpdate(targetId, { $addToSet: { followers: currentId } }, { new: true }).select('-password'),
+      UserModel.findByIdAndUpdate(currentId, { $addToSet: { following: targetId } }, { new: true }).select('-password')
+    ]);
+
+    if (!updatedTarget || !updatedCurrent) return res.status(404).json({ message: 'User not found' });
+
+    res.json({ message: 'Followed', target: { id: updatedTarget._id, followersCount: updatedTarget.followers.length },
+      current: { id: updatedCurrent._id, followingCount: updatedCurrent.following.length } });
+  } catch (err) {
+    console.error('Follow error:', err);
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+// PUT /api/users/:id/unfollow - unfollow a user
+router.put('/:id/unfollow', auth, async (req, res) => {
+  try {
+    const targetId = req.params.id;
+    const currentId = req.userId;
+
+    if (currentId === targetId) return res.status(400).json({ message: "Cannot unfollow yourself" });
+
+    const UserModel = User;
+
+    const [updatedTarget, updatedCurrent] = await Promise.all([
+      UserModel.findByIdAndUpdate(targetId, { $pull: { followers: currentId } }, { new: true }).select('-password'),
+      UserModel.findByIdAndUpdate(currentId, { $pull: { following: targetId } }, { new: true }).select('-password')
+    ]);
+
+    if (!updatedTarget || !updatedCurrent) return res.status(404).json({ message: 'User not found' });
+
+    res.json({ message: 'Unfollowed', target: { id: updatedTarget._id, followersCount: updatedTarget.followers.length },
+      current: { id: updatedCurrent._id, followingCount: updatedCurrent.following.length } });
+  } catch (err) {
+    console.error('Unfollow error:', err);
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 });
