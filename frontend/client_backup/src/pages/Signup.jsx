@@ -1,8 +1,8 @@
 import React, { useState, useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { AuthContext } from '../AuthContext';
 import { motion } from 'framer-motion';
-import API from '../api'; // Use your API instance
+import { AuthContext } from '../AuthContext';
+import API from '../api';
 
 const MIN_PASSWORD_LENGTH = 6;
 
@@ -14,26 +14,32 @@ const Signup = () => {
     confirmPassword: ''
   });
   const [error, setError] = useState('');
+  const [info, setInfo] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  
+
+  const [isOtpStage, setIsOtpStage] = useState(false);
+  const [otpEmail, setOtpEmail] = useState('');
+  const [otp, setOtp] = useState('');
+
   const { login } = useContext(AuthContext);
   const navigate = useNavigate();
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
+    setFormData(prev => ({
+      ...prev,
       [e.target.name]: e.target.value
-    });
+    }));
     setError('');
   };
 
-  const handleSubmit = async (e) => {
+  const handleSignupSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
-    
+    setInfo('');
+
     if (formData.password.length < MIN_PASSWORD_LENGTH) {
-      setError('Password length should be atleast 6 characters');
+      setError(`Password length should be at least ${MIN_PASSWORD_LENGTH} characters`);
       setIsLoading(false);
       return;
     }
@@ -45,18 +51,16 @@ const Signup = () => {
     }
 
     try {
-      // Use your existing API structure and endpoint
       const payload = {
         name: formData.name.trim(),
         email: formData.email.trim(),
-        password: formData.password,
+        password: formData.password
       };
-      
+
       const res = await API.post('/auth/register', payload);
-      
-      // Use the same response structure as your working code
-      login(res.data.user, res.data.token);
-      navigate('/', { replace: true });
+      setInfo(res.data.message || 'OTP sent to your email. Please verify.');
+      setOtpEmail(res.data.email || payload.email);
+      setIsOtpStage(true);
     } catch (err) {
       const data = err.response?.data;
       if (data?.errors && Array.isArray(data.errors)) {
@@ -71,13 +75,190 @@ const Signup = () => {
     }
   };
 
+  const handleOtpSubmit = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError('');
+    setInfo('');
+
+    if (!otp.trim()) {
+      setError('Please enter the OTP sent to your email.');
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      const payload = {
+        email: otpEmail,
+        otp: otp.trim()
+      };
+
+      const res = await API.post('/auth/verify-otp', payload);
+      login(res.data.user, res.data.token);
+      navigate('/', { replace: true });
+    } catch (err) {
+      const data = err.response?.data;
+      if (data?.errors && Array.isArray(data.errors)) {
+        const errorMap = {};
+        data.errors.forEach(x => { if (x.param) errorMap[x.param] = x.msg; });
+        setError(Object.values(errorMap).join(', '));
+      } else {
+        setError(data?.message || 'OTP verification failed. Please try again.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    setIsLoading(true);
+    setError('');
+    setInfo('');
+
+    try {
+      await API.post('/auth/resend-otp', { email: otpEmail });
+      setInfo('New OTP sent to your email.');
+    } catch (err) {
+      const data = err.response?.data;
+      setError(data?.message || 'Unable to resend OTP. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const renderSignupForm = () => (
+    <form className="space-y-5" onSubmit={handleSignupSubmit}>
+      <div>
+        <label htmlFor="name" className="block text-sm font-medium text-white/90 mb-2 font-outfit">
+          Full Name
+        </label>
+        <input
+          id="name"
+          name="name"
+          type="text"
+          autoComplete="name"
+          required
+          value={formData.name}
+          onChange={handleChange}
+          className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 font-outfit backdrop-blur-sm"
+          placeholder="Enter your full name"
+        />
+      </div>
+
+      <div>
+        <label htmlFor="email" className="block text-sm font-medium text-white/90 mb-2 font-outfit">
+          Email Address
+        </label>
+        <input
+          id="email"
+          name="email"
+          type="email"
+          autoComplete="email"
+          required
+          value={formData.email}
+          onChange={handleChange}
+          className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 font-outfit backdrop-blur-sm"
+          placeholder="you@example.com"
+        />
+      </div>
+
+      <div>
+        <label htmlFor="password" className="block text-sm font-medium text-white/90 mb-2 font-outfit">
+          Password
+        </label>
+        <input
+          id="password"
+          name="password"
+          type="password"
+          autoComplete="new-password"
+          required
+          value={formData.password}
+          onChange={handleChange}
+          className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 font-outfit backdrop-blur-sm"
+          placeholder="Create a password"
+        />
+      </div>
+
+      <div>
+        <label htmlFor="confirmPassword" className="block text-sm font-medium text-white/90 mb-2 font-outfit">
+          Confirm Password
+        </label>
+        <input
+          id="confirmPassword"
+          name="confirmPassword"
+          type="password"
+          autoComplete="new-password"
+          required
+          value={formData.confirmPassword}
+          onChange={handleChange}
+          className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 font-outfit backdrop-blur-sm"
+          placeholder="Confirm your password"
+        />
+      </div>
+
+      <button
+        type="submit"
+        disabled={isLoading}
+        className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white py-3 px-4 rounded-xl font-semibold transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 focus:ring-offset-transparent disabled:opacity-50 disabled:cursor-not-allowed font-outfit shadow-lg shadow-blue-500/25"
+      >
+        {isLoading ? 'Creating Account...' : 'Create Account'}
+      </button>
+
+      <div className="mt-6 text-center">
+        <p className="text-white/70 font-outfit">
+          Already have an account?{' '}
+          <Link
+            to="/login"
+            className="text-cyan-300 hover:text-cyan-200 font-semibold transition-colors duration-200 hover:underline"
+          >
+            Sign In
+          </Link>
+        </p>
+      </div>
+    </form>
+  );
+
+  const renderOtpForm = () => (
+    <form className="space-y-5" onSubmit={handleOtpSubmit}>
+      <div>
+        <label className="block text-sm font-medium text-white/90 mb-2 font-outfit">
+          Enter OTP sent to {otpEmail}
+        </label>
+        <input
+          type="text"
+          value={otp}
+          onChange={(e) => {
+            setOtp(e.target.value);
+            setError('');
+          }}
+          className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 font-outfit backdrop-blur-sm"
+          placeholder="Enter 6-digit code"
+        />
+      </div>
+
+      <button
+        type="submit"
+        disabled={isLoading}
+        className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white py-3 px-4 rounded-xl font-semibold transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-transparent disabled:opacity-50 disabled:cursor-not-allowed font-outfit shadow-lg shadow-green-500/25"
+      >
+        {isLoading ? 'Verifying...' : 'Verify OTP'}
+      </button>
+
+      <button
+        type="button"
+        onClick={handleResendOtp}
+        disabled={isLoading}
+        className="w-full text-cyan-300 hover:text-cyan-200 font-semibold transition-colors duration-200 underline"
+      >
+        Resend OTP
+      </button>
+    </form>
+  );
+
   return (
     <div className="min-h-screen relative overflow-hidden">
-      {/* Enhanced Full Screen Background */}
       <div className="fixed inset-0 z-0">
         <div className="absolute inset-0 bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-800"></div>
-        
-        {/* Animated Stars */}
         <div className="absolute inset-0">
           {[...Array(80)].map((_, i) => (
             <motion.div
@@ -99,41 +280,35 @@ const Signup = () => {
             />
           ))}
         </div>
-
-        {/* Enhanced Floating Elements */}
         <motion.div
-          animate={{ 
-            y: [0, -30, 0], 
+          animate={{
+            y: [0, -30, 0],
             opacity: [0.3, 0.6, 0.3],
             scale: [1, 1.1, 1]
           }}
-          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+          transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
           className="absolute top-20 left-10 w-32 h-32 md:w-48 md:h-48 bg-gradient-to-br from-blue-400/30 to-cyan-400/30 rounded-full blur-3xl"
         />
-        
         <motion.div
-          animate={{ 
-            y: [0, 20, 0], 
+          animate={{
+            y: [0, 20, 0],
             opacity: [0.4, 0.7, 0.4],
             scale: [1.1, 1, 1.1]
           }}
-          transition={{ duration: 7, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+          transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut', delay: 2 }}
           className="absolute bottom-32 right-8 w-40 h-40 md:w-56 md:h-56 bg-gradient-to-br from-purple-400/30 to-pink-400/30 rounded-full blur-3xl"
         />
-
-        {/* Additional Floating Orb */}
         <motion.div
-          animate={{ 
-            y: [20, -10, 20], 
+          animate={{
+            y: [20, -10, 20],
             opacity: [0.2, 0.5, 0.2],
             scale: [0.8, 1.2, 0.8]
           }}
-          transition={{ duration: 9, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+          transition={{ duration: 9, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
           className="absolute top-1/3 right-1/4 w-24 h-24 md:w-32 md:h-32 bg-gradient-to-br from-indigo-400/20 to-purple-400/20 rounded-full blur-2xl"
         />
       </div>
 
-      {/* Your Existing Content - Only changed the outer container */}
       <div className="relative z-10 min-h-screen flex items-center justify-center px-4 sm:px-6 lg:px-8">
         <div className="max-w-6xl mx-auto w-full py-8">
           <motion.div
@@ -147,17 +322,17 @@ const Signup = () => {
                 <motion.div
                   initial={{ scale: 0, rotate: -180 }}
                   animate={{ scale: 1, rotate: 0 }}
-                  transition={{ duration: 1.2, type: "spring", stiffness: 100, damping: 15 }}
+                  transition={{ duration: 1.2, type: 'spring', stiffness: 100, damping: 15 }}
                   className="flex justify-center mb-8"
                 >
                   <div className="relative">
-                    <div className="absolute inset-0 w-20 h-20 bg-yellow-200/30 rounded-full blur-xl animate-pulse"></div>
-                    <div className="relative w-16 h-16 bg-gradient-to-br from-yellow-100 to-yellow-200 rounded-full shadow-2xl shadow-yellow-300/50 flex items-center justify-center border-2 border-yellow-300/40">
-                      <svg 
+                    <div className="absolute inset-0 w-20 h-20	bg-yellow-200/30 rounded-full blur-xl animate-pulse"></div>
+                    <div className="relative w-16 h-16	bg-gradient-to-br from-yellow-100 to-yellow-200 rounded-full shadow-2xl shadow-yellow-300/50 flex items-center justify-center border-2 border-yellow-300/40">
+                      <svg
                         className="w-8 h-8 text-amber-800"
-                        viewBox="0 0 24 24" 
-                        fill="none" 
-                        stroke="currentColor" 
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
                         strokeWidth="1.5"
                         strokeLinecap="round"
                         strokeLinejoin="round"
@@ -169,10 +344,12 @@ const Signup = () => {
                 </motion.div>
 
                 <h2 className="text-3xl font-bold text-center text-white mb-2 font-outfit bg-gradient-to-br from-white to-gray-200 bg-clip-text text-transparent">
-                  Join Luna
+                  {isOtpStage ? 'Verify Your Email' : 'Join Luna'}
                 </h2>
                 <p className="text-center text-white/80 mb-8 font-outfit text-lg">
-                  Create your account and start sharing
+                  {isOtpStage
+                    ? 'Enter the OTP sent to your email to activate your account.'
+                    : 'Create your account and start sharing'}
                 </p>
 
                 {error && (
@@ -181,102 +358,13 @@ const Signup = () => {
                   </div>
                 )}
 
-                <form className="space-y-5" onSubmit={handleSubmit}>
-                  <div>
-                    <label htmlFor="name" className="block text-sm font-medium text-white/90 mb-2 font-outfit">
-                      Full Name
-                    </label>
-                    <input
-                      id="name"
-                      name="name"
-                      type="text"
-                      autoComplete="name"
-                      required
-                      value={formData.name}
-                      onChange={handleChange}
-                      className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 font-outfit backdrop-blur-sm"
-                      placeholder="Enter your full name"
-                    />
+                {info && (
+                  <div className="bg-green-500/20 border border-green-500/50 text-white px-4 py-3 rounded-xl mb-6 backdrop-blur-sm">
+                    {info}
                   </div>
+                )}
 
-                  <div>
-                    <label htmlFor="email" className="block text-sm font-medium text-white/90 mb-2 font-outfit">
-                      Email Address
-                    </label>
-                    <input
-                      id="email"
-                      name="email"
-                      type="email"
-                      autoComplete="email"
-                      required
-                      value={formData.email}
-                      onChange={handleChange}
-                      className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 font-outfit backdrop-blur-sm"
-                      placeholder="you@example.com"
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="password" className="block text-sm font-medium text-white/90 mb-2 font-outfit">
-                      Password
-                    </label>
-                    <input
-                      id="password"
-                      name="password"
-                      type="password"
-                      autoComplete="new-password"
-                      required
-                      value={formData.password}
-                      onChange={handleChange}
-                      className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 font-outfit backdrop-blur-sm"
-                      placeholder="Create a password"
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="confirmPassword" className="block text-sm font-medium text-white/90 mb-2 font-outfit">
-                      Confirm Password
-                    </label>
-                    <input
-                      id="confirmPassword"
-                      name="confirmPassword"
-                      type="password"
-                      autoComplete="new-password"
-                      required
-                      value={formData.confirmPassword}
-                      onChange={handleChange}
-                      className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 font-outfit backdrop-blur-sm"
-                      placeholder="Confirm your password"
-                    />
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={isLoading}
-                    className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white py-3 px-4 rounded-xl font-semibold transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 focus:ring-offset-transparent disabled:opacity-50 disabled:cursor-not-allowed font-outfit shadow-lg shadow-blue-500/25"
-                  >
-                    {isLoading ? (
-                      <div className="flex items-center justify-center">
-                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></div>
-                        Creating Account...
-                      </div>
-                    ) : (
-                      'Create Account'
-                    )}
-                  </button>
-                </form>
-
-                <div className="mt-6 text-center">
-                  <p className="text-white/70 font-outfit">
-                    Already have an account?{' '}
-                    <Link 
-                      to="/login" 
-                      className="text-cyan-300 hover:text-cyan-200 font-semibold transition-colors duration-200 hover:underline"
-                    >
-                      Sign In
-                    </Link>
-                  </p>
-                </div>
+                {isOtpStage ? renderOtpForm() : renderSignupForm()}
               </div>
             </div>
           </motion.div>

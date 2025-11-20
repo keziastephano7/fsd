@@ -15,7 +15,10 @@
     "imagekit": "^6.0.0",
     "jsonwebtoken": "^9.0.0",
     "mongoose": "^7.0.0",
-    "multer": "^2.0.2"
+    "multer": "^2.0.2",
+    "nod": "^0.2.0",
+    "nodemailer": "^7.0.10",
+    "nom": "^0.0.3"
   },
   "devDependencies": {
     "nodemon": "^2.0.22"
