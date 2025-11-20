@@ -1,4 +1,5 @@
-import React, { createContext, useState, useEffect } from 'react';
+import React, { createContext, useState, useEffect, useRef } from 'react';
+import { jwtDecode } from 'jwt-decode';
 import { setAuthToken } from './api';
 
 export const AuthContext = createContext();
@@ -35,9 +36,55 @@ export function AuthProvider({ children }) {
     }
   });
 
+  const logoutTimerRef = useRef(null);
+
+  const clearLogoutTimer = () => {
+    if (logoutTimerRef.current) {
+      clearTimeout(logoutTimerRef.current);
+      logoutTimerRef.current = null;
+    }
+  };
+
+  const logout = () => {
+    clearLogoutTimer();
+    setUser(null);
+    setAuthToken(null);
+    localStorage.removeItem('user');
+    localStorage.removeItem('token');
+  };
+
+  const scheduleAutoLogout = (token) => {
+    clearLogoutTimer();
+    if (!token) return;
+
+    try {
+      const decoded = jwtDecode(token);
+      if (!decoded?.exp) return;
+
+      const expiresAt = decoded.exp * 1000;
+      const timeout = expiresAt - Date.now();
+
+      if (timeout <= 0) {
+        logout();
+      } else {
+        logoutTimerRef.current = setTimeout(() => {
+          logout();
+        }, timeout);
+      }
+    } catch (err) {
+      console.error('Failed to decode JWT token', err);
+      logout();
+    }
+  };
+
   useEffect(() => {
     const token = localStorage.getItem('token');
-    if (token) setAuthToken(token);
+    if (token) {
+      setAuthToken(token);
+      scheduleAutoLogout(token);
+    }
+
+    return () => clearLogoutTimer();
   }, []);
 
   const login = (userObj, token) => {
@@ -46,13 +93,7 @@ export function AuthProvider({ children }) {
     setUser(u);
     setAuthToken(token);
     localStorage.setItem('user', JSON.stringify(u));
-  };
-
-  const logout = () => {
-    setUser(null);
-    setAuthToken(null);
-    localStorage.removeItem('user');
-    localStorage.removeItem('token');
+    scheduleAutoLogout(token);
   };
 
   const updateUser = (partialOrFullUser) => {
