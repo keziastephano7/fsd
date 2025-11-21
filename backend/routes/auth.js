@@ -208,4 +208,38 @@ router.post(
   }
 );
 
+// GET /api/auth/me-with-groups - Get current user WITH groups
+router.get('/me-with-groups', async (req, res) => {
+  try {
+    const token = req.header('Authorization')?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({ message: 'No token provided' });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(decoded.userId)
+      .populate('groups', 'name _id') // Populate groups
+      .select('-password -emailVerificationOTP -otpExpires');
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json({
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      bio: user.bio,
+      avatarUrl: user.avatarUrl,
+      groups: user.groups || []
+    });
+  } catch (error) {
+    console.error('Error in /me-with-groups:', error);
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({ message: 'Invalid token' });
+    }
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 module.exports = router;
