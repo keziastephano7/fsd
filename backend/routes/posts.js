@@ -3,6 +3,7 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const auth = require('../middleware/auth');
+const jwt = require('jsonwebtoken');
 const Post = require('../models/Post');
 const User = require('../models/User');
 const fs = require('fs').promises;
@@ -87,13 +88,55 @@ router.post(
   }
 );
 
+// Helper: get viewer id from Authorization header if present (optional)
+function getViewerIdFromHeader(req) {
+  const authHeader = req.header('Authorization');
+  if (!authHeader) return null;
+  const token = authHeader.split(' ')[1];
+  if (!token) return null;
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    return decoded.userId;
+  } catch (e) {
+    return null;
+  }
+}
+
 // GET /api/posts - feed (optional ?author=userid or ?tag=tagname)
+// Visibility: posts are visible only to followers (Instagram model). If a viewer is not a follower
+// of the author (and not the author themself), they receive an empty array for that author's posts.
+// For the main feed (no author param), authenticated viewers see posts from users they follow + their own posts.
 router.get('/', async (req, res) => {
   try {
     const filter = {};
-    if (req.query.author) filter.author = req.query.author;
+    const viewerId = getViewerIdFromHeader(req);
+
+    // tag filter still applies
     if (req.query.tag) filter.tags = { $in: [req.query.tag.toLowerCase()] };
-    
+
+    if (req.query.author) {
+      // Viewing a specific user's profile posts
+      const authorId = req.query.author;
+      // If viewer is author, allow
+      if (viewerId && String(viewerId) === String(authorId)) {
+        filter.author = authorId;
+      } else {
+        // Check whether viewer is in author's followers
+        const author = await User.findById(authorId).select('followers');
+        if (!author) return res.status(404).json([]);
+        const isFollower = viewerId && (author.followers || []).some(f => String(f) === String(viewerId));
+        if (!isFollower) return res.json({ private: true }); // not allowed to see posts
+        filter.author = authorId;
+      }
+    } else {
+      // Main feed: only show posts from users the viewer follows (and their own posts)
+      if (!viewerId) return res.json([]);
+      const viewer = await User.findById(viewerId).select('following');
+      const authors = (viewer.following || []).map(f => String(f));
+      authors.push(String(viewerId));
+      filter.author = { $in: authors };
+    }
+
     const posts = await Post.find(filter)
       .populate('author', '-password')
       .sort({ createdAt: -1 });
