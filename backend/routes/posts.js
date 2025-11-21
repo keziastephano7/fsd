@@ -5,10 +5,26 @@ const path = require('path');
 const auth = require('../middleware/auth');
 const Post = require('../models/Post');
 const User = require('../models/User');
+const Group = require('../models/Group');
 const fs = require('fs').promises;
 const { body, validationResult } = require('express-validator');
+const jwt = require('jsonwebtoken');
 
 const imagekit = require('../config/imagekit');  
+
+function extractUserId(req) {
+  const authHeader = req.header('Authorization');
+  if (!authHeader) return null;
+  const parts = authHeader.split(' ');
+  if (parts.length !== 2) return null;
+  const token = parts[1];
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    return decoded.userId;
+  } catch {
+    return null;
+  }
+}
 
 // // Multer setup
 // const storage = multer.diskStorage({
@@ -48,8 +64,11 @@ router.post(
     }
 
     try {
-      const { caption } = req.body;
+      const { caption, visibility = 'public' } = req.body;
       let imageUrl = '';
+      if (!['public', 'groups'].includes(visibility)) {
+        return res.status(400).json({ message: 'Invalid visibility option' });
+      }
 
       if (req.file) {
         const uploadResponse = await imagekit.upload({
@@ -70,15 +89,45 @@ router.post(
         }
       }
       
+      let targetGroups = [];
+      if (visibility === 'groups') {
+        if (!req.body.targetGroups) {
+          return res.status(400).json({ message: 'Please select at least one group for private posts' });
+        }
+        try {
+          targetGroups = JSON.parse(req.body.targetGroups);
+        } catch (e) {
+          targetGroups = Array.isArray(req.body.targetGroups) ? req.body.targetGroups : [];
+        }
+        targetGroups = targetGroups.filter(Boolean);
+        if (!targetGroups.length) {
+          return res.status(400).json({ message: 'Please select at least one group for private posts' });
+        }
+
+        const accessibleGroups = await Group.find({
+          _id: { $in: targetGroups },
+          members: req.userId
+        }).select('_id');
+
+        if (accessibleGroups.length !== targetGroups.length) {
+          return res.status(403).json({ message: 'You can only post to groups you belong to' });
+        }
+      }
+
       const post = new Post({ 
         author: req.userId, 
         caption, 
         imageUrl,
-        tags  // ⭐ ADD TAGS!
+        tags,
+        visibility,
+        targetGroups
       });
       
       await post.save();
-      await post.populate('author', '-password');
+      await post.populate([
+        { path: 'author', select: '-password' },
+        { path: 'targetGroups', select: 'name' }
+      ]);
       res.json(post);
     } catch (err) {
       console.error('Error creating post:', err);
@@ -87,18 +136,55 @@ router.post(
   }
 );
 
-// GET /api/posts - feed (optional ?author=userid or ?tag=tagname)
+async function buildVisibilityFilter(viewerId, specificGroupId) {
+  const orClauses = [{ visibility: 'public' }];
+
+  if (viewerId) {
+    const memberGroups = await Group.find({ members: viewerId }).select('_id');
+    const groupIds = memberGroups.map((g) => g._id);
+    if (groupIds.length) {
+      orClauses.push({ visibility: 'groups', targetGroups: { $in: groupIds } });
+    }
+
+    if (specificGroupId) {
+      const isMember = groupIds.some((id) => String(id) === String(specificGroupId));
+      if (!isMember) {
+        throw new Error('not-member');
+      }
+      return { visibility: 'groups', targetGroups: specificGroupId };
+    }
+  } else if (specificGroupId) {
+    throw new Error('auth-required');
+  }
+
+  return { $or: orClauses };
+}
+
+// GET /api/posts - feed (optional ?author=userid or ?tag=tagname or ?groupId=)
 router.get('/', async (req, res) => {
   try {
-    const filter = {};
-    if (req.query.author) filter.author = req.query.author;
-    if (req.query.tag) filter.tags = { $in: [req.query.tag.toLowerCase()] };
+    const viewerId = extractUserId(req);
+    const { author, tag, groupId } = req.query;
+
+    let filter = {};
+    if (author) filter.author = author;
+    if (tag) filter.tags = { $in: [tag.toLowerCase()] };
+
+    const visibilityFilter = await buildVisibilityFilter(viewerId, groupId);
+    filter = { ...filter, ...visibilityFilter };
     
     const posts = await Post.find(filter)
       .populate('author', '-password')
+      .populate('targetGroups', 'name')
       .sort({ createdAt: -1 });
     res.json(posts);
   } catch (err) {
+    if (err.message === 'not-member') {
+      return res.status(403).json({ message: 'You must be a member of this group to view its posts' });
+    }
+    if (err.message === 'auth-required') {
+      return res.status(401).json({ message: 'Authentication required to view this group' });
+    }
     console.error('Error fetching posts:', err);
     res.status(500).json({ message: 'Server error' });
   }
@@ -107,8 +193,22 @@ router.get('/', async (req, res) => {
 // GET /api/posts/:id
 router.get('/:id', async (req, res) => {
   try {
-    const post = await Post.findById(req.params.id).populate('author', '-password');
+    const post = await Post.findById(req.params.id)
+      .populate('author', '-password')
+      .populate('targetGroups', 'name');
     if (!post) return res.status(404).json({ message: 'Post not found' });
+
+    if (post.visibility === 'groups') {
+      const viewerId = extractUserId(req);
+      if (!viewerId) {
+        return res.status(401).json({ message: 'Authentication required to view this post' });
+      }
+      const isMember = await Group.exists({ _id: { $in: post.targetGroups }, members: viewerId });
+      if (!isMember) {
+        return res.status(403).json({ message: 'You do not have access to this post' });
+      }
+    }
+
     res.json(post);
   } catch (err) {
     console.error('Error fetching post:', err);
@@ -135,6 +235,41 @@ router.put('/:id', auth, upload.single('image'), async (req, res) => {
       }
     }
 
+    if (req.body.visibility) {
+      if (!['public', 'groups'].includes(req.body.visibility)) {
+        return res.status(400).json({ message: 'Invalid visibility option' });
+      }
+      post.visibility = req.body.visibility;
+    }
+
+    if (post.visibility === 'groups') {
+      let targetGroups = post.targetGroups.map((id) => String(id));
+      if (req.body.targetGroups) {
+        try {
+          targetGroups = JSON.parse(req.body.targetGroups);
+        } catch {
+          targetGroups = Array.isArray(req.body.targetGroups) ? req.body.targetGroups : targetGroups;
+        }
+      }
+      targetGroups = targetGroups.filter(Boolean);
+      if (!targetGroups.length) {
+        return res.status(400).json({ message: 'Please select at least one group for private posts' });
+      }
+
+      const accessibleGroups = await Group.find({
+        _id: { $in: targetGroups },
+        members: req.userId
+      }).select('_id');
+
+      if (accessibleGroups.length !== targetGroups.length) {
+        return res.status(403).json({ message: 'You can only target groups you belong to' });
+      }
+
+      post.targetGroups = targetGroups;
+    } else if (req.body.visibility === 'public') {
+      post.targetGroups = [];
+    }
+
     // if (req.file) {
     //   if (post.imageUrl) {
     //     try {
@@ -155,7 +290,10 @@ router.put('/:id', auth, upload.single('image'), async (req, res) => {
     }
 
     await post.save();
-    await post.populate('author', '-password');
+    await post.populate([
+      { path: 'author', select: '-password' },
+      { path: 'targetGroups', select: 'name' }
+    ]);
     res.json(post);
   } catch (err) {
     console.error('Error updating post:', err);

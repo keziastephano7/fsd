@@ -11,7 +11,12 @@ const UserSchema = new mongoose.Schema({
   // Email verification
   isEmailVerified: { type: Boolean, default: false },
   emailVerificationOTP: { type: String, default: null },
-  otpExpires: { type: Date, default: null }
+  otpExpires: { type: Date, default: null },
+
+  groups: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Group'
+  }],
 }, { timestamps: true });
 
 module.exports = mongoose.model('User', UserSchema);
