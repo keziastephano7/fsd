@@ -85,10 +85,6 @@ export default function Feed({ tagFilter: propTagFilter } = {}) {
   const [allPosts, setAllPosts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [groupOptions, setGroupOptions] = useState([]);
-  const [groupsLoading, setGroupsLoading] = useState(false);
-  const [groupsError, setGroupsError] = useState('');
-  const [groupFilter, setGroupFilter] = useState('all');
 
   const hydratePostsWithCurrentUser = useCallback((rawPosts = []) => {
     if (!user) return rawPosts;
@@ -101,14 +97,12 @@ export default function Feed({ tagFilter: propTagFilter } = {}) {
     });
   }, [user]);
 
-  const load = useCallback(async (signal, options = {}) => {
+  const load = useCallback(async (signal) => {
     if (!user) return;
     setLoading(true);
     setError('');
     try {
-      const params = {};
-      if (options.groupId) params.groupId = options.groupId;
-      const res = await API.get('/posts', { params, signal });
+      const res = await API.get('/posts', { signal });
       const raw = Array.isArray(res.data) ? res.data : [];
       const hydrated = hydratePostsWithCurrentUser(raw);
       setAllPosts(hydrated);
@@ -123,46 +117,9 @@ export default function Feed({ tagFilter: propTagFilter } = {}) {
 
   useEffect(() => {
     const controller = new AbortController();
-    const groupIdParam = groupFilter !== 'all' ? groupFilter : undefined;
-    load(controller.signal, { groupId: groupIdParam });
+    load(controller.signal);
     return () => controller.abort();
-  }, [load, groupFilter]);
-
-  useEffect(() => {
-    if (!user) return;
-    let mounted = true;
-    const fetchGroups = async () => {
-      setGroupsLoading(true);
-      setGroupsError('');
-      try {
-        const res = await API.get('/groups');
-        if (!mounted) return;
-        setGroupOptions(res.data || []);
-      } catch (err) {
-        if (!mounted) return;
-        setGroupsError(err.response?.data?.message || 'Unable to load groups.');
-      } finally {
-        if (mounted) setGroupsLoading(false);
-      }
-    };
-    fetchGroups();
-    return () => {
-      mounted = false;
-    };
-  }, [user]);
-
-  const matchesCurrentGroupFilter = useCallback(
-    (post) => {
-      if (!post) return false;
-      if (groupFilter === 'all') return true;
-      if (post.visibility !== 'groups') return false;
-      return (post.targetGroups || []).some((g) => {
-        const id = g?._id || g?.id || g;
-        return String(id) === String(groupFilter);
-      });
-    },
-    [groupFilter]
-  );
+  }, [load]);
 
   const displayedPosts = React.useMemo(() => {
     if (activeTagsArray.length === 0) return allPosts;
@@ -180,10 +137,9 @@ export default function Feed({ tagFilter: propTagFilter } = {}) {
     }
     setAllPosts(prev => {
       if (prev.some(p => (p._id || p.id) === newId)) return prev;
-      if (!matchesCurrentGroupFilter(newPost)) return prev;
       return [newPost, ...prev];
     });
-  }, [matchesCurrentGroupFilter]);
+  }, []);
 
   useEffect(() => {
     const onPostCreated = (e) => {
@@ -244,8 +200,7 @@ export default function Feed({ tagFilter: propTagFilter } = {}) {
   const clearFilter = () => navigate('/');
   const retryLoad = () => {
     const controller = new AbortController();
-    const groupIdParam = groupFilter !== 'all' ? groupFilter : undefined;
-    load(controller.signal, { groupId: groupIdParam });
+    load(controller.signal);
   };
 
   if (!user) {
@@ -286,46 +241,6 @@ export default function Feed({ tagFilter: propTagFilter } = {}) {
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-3">Your Feed</h1>
           <p className="text-gray-600 dark:text-gray-400 text-lg">Latest updates from your community</p>
         </div>
-
-        {groupsError && (
-          <div className="mb-6 px-4 py-3 rounded-2xl bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-200 text-sm">
-            {groupsError}
-          </div>
-        )}
-
-        {groupOptions.length > 0 && (
-          <div className="mb-6">
-            <p className="text-sm font-semibold text-gray-600 dark:text-gray-300 mb-2">Filter by group</p>
-            <div className="flex gap-2 overflow-x-auto pb-2">
-              <button
-                className={`px-4 py-2 rounded-full border text-sm transition ${
-                  groupFilter === 'all'
-                    ? 'border-blue-500 text-blue-600 bg-blue-50 dark:bg-blue-900/30'
-                    : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300'
-                }`}
-                onClick={() => setGroupFilter('all')}
-              >
-                All
-              </button>
-              {groupOptions.map((group) => {
-                const id = group._id || group.id;
-                return (
-                  <button
-                    key={id}
-                    className={`px-4 py-2 rounded-full border text-sm transition ${
-                      groupFilter === id
-                        ? 'border-purple-500 text-purple-600 bg-purple-50 dark:bg-purple-900/30'
-                        : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300'
-                    }`}
-                    onClick={() => setGroupFilter(id)}
-                  >
-                    {group.name}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
 
         {/* Active Filters */}
         {activeTagsArray.length > 0 && (
