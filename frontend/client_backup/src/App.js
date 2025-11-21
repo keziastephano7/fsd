@@ -14,6 +14,7 @@ import TagPage from './pages/TagPage';
 import { ThemeProvider } from './ThemeContext';
 import Landing from './pages/Landing'; // Add this import
 import PostPage from './pages/Post';
+import Groups from './pages/Groups';
 
 function App() {
   const { user } = useContext(AuthContext);
@@ -34,6 +35,7 @@ function App() {
               <Route path="/profile/:id/edit" element={<EditProfile />} />
               <Route path="/create" element={<CreatePostPage />} />
               <Route path="/tag/:tag" element={<TagPage />} />
+              <Route path="/groups" element={<Groups />} />
             </Routes>
           </main>
         </div>

@@ -24,6 +24,18 @@ export default function PostCard({ post, onUpdate, disableMenu = false, isModal,
 
   const { user } = useContext(AuthContext);
   const meId = user?.id || user?._id;
+  const isGroupPost = post.visibility === 'groups';
+  
+  // Get user's group IDs for filtering
+  const userGroupIds = user?.groups?.map(g => g._id || g) || [];
+  
+  // Filter targetGroups to only show groups the current user is in
+  const visibleGroups = (post.targetGroups || [])
+    .filter(group => userGroupIds.includes(group._id || group))
+    .map(group => group.name || group)
+    .filter(Boolean);
+
+  const isAuthor = String(post.author?._id) === String(meId);
 
   useEffect(() => {
     if (showCommentsDefault) setShowComments(true);
@@ -82,7 +94,6 @@ export default function PostCard({ post, onUpdate, disableMenu = false, isModal,
     }
   };
 
-  const isAuthor = String(post.author?._id) === String(meId);
   const avatar = post.author?.avatarUrl && buildUrl(post.author.avatarUrl);
   const authorLink = `/profile/${post.author?._id}`;
 
@@ -91,12 +102,10 @@ export default function PostCard({ post, onUpdate, disableMenu = false, isModal,
     if (!dateString) return '';
     const date = new Date(dateString);
     
-    // Format date as dd/mm/yyyy
     const day = String(date.getDate()).padStart(2, '0');
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const year = date.getFullYear();
     
-    // Format time as hh:mm am/pm (local time without seconds)
     const time = date.toLocaleTimeString('en-US', {
       hour: 'numeric',
       minute: '2-digit',
@@ -115,7 +124,7 @@ export default function PostCard({ post, onUpdate, disableMenu = false, isModal,
         className={`bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden transition-all duration-300 w-full
           ${isModal ? "max-w-lg mx-auto" : "max-w-2xl mx-auto"} hover:shadow-xl dark:hover:shadow-gray-900/50`}
       >
-        {/* Header - Enhanced Design */}
+        {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-100 dark:border-gray-700">
           <Link to={authorLink} className="flex items-center gap-3 flex-1 min-w-0 group">
             <div className="relative">
@@ -130,7 +139,6 @@ export default function PostCard({ post, onUpdate, disableMenu = false, isModal,
                   {post.author?.name?.charAt(0) || '?'}
                 </div>
               )}
-              {/* Online Status Badge */}
               <OnlineStatus 
                 userId={post.author?._id} 
                 size="sm" 
@@ -193,7 +201,24 @@ export default function PostCard({ post, onUpdate, disableMenu = false, isModal,
           )}
         </div>
 
-        {/* Image Section - Enhanced */}
+        {/* Group Post Indicator - UPDATED */}
+        {isGroupPost && visibleGroups.length > 0 && (
+          <div className="px-4 pb-0">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-200 text-xs font-semibold">
+              <svg className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M10 3a7 7 0 100 14 7 7 0 000-14zm3.32 10.9A4.98 4.98 0 0110 15c-1.26 0-2.42-.46-3.32-1.1a6 6 0 016.64 0zM6.5 9a3.5 3.5 0 117 0 3.5 3.5 0 01-7 0z" />
+              </svg>
+              <span>
+                {isAuthor 
+                  ? `Shared with ${visibleGroups.join(', ')}`
+                  : `From ${post.author?.name || 'User'} in ${visibleGroups.join(', ')}`
+                }
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Rest of the PostCard component remains the same */}
         {post.imageUrl && (
           <div className="w-full bg-gray-50 dark:bg-gray-900">
             <div className="relative w-full" style={{ paddingTop: '75%' }}>
@@ -207,9 +232,7 @@ export default function PostCard({ post, onUpdate, disableMenu = false, isModal,
           </div>
         )}
 
-        {/* Content Section - Enhanced */}
         <div className="p-4 space-y-3">
-          {/* Engagement Buttons - Modern Design */}
           <div className="flex items-center gap-6">
             <motion.button
               onClick={toggleLike}
@@ -262,14 +285,12 @@ export default function PostCard({ post, onUpdate, disableMenu = false, isModal,
             </motion.button>
           </div>
 
-          {/* Caption - Enhanced Typography */}
           {post.caption && (
             <p className="text-gray-900 dark:text-white whitespace-pre-wrap break-words select-text text-[15px] leading-relaxed">
               {post.caption}
             </p>
           )}
 
-          {/* Tags - Enhanced */}
           {post.tags && post.tags.length > 0 && (
             <div className="flex flex-wrap gap-2 pt-2">
               {post.tags.map((t, i) => (
@@ -278,7 +299,6 @@ export default function PostCard({ post, onUpdate, disableMenu = false, isModal,
             </div>
           )}
 
-          {/* View Comments Prompt */}
           {!showComments && commentsCount > 0 && (
             <button
               onClick={() => setShowComments(true)}
@@ -290,7 +310,6 @@ export default function PostCard({ post, onUpdate, disableMenu = false, isModal,
           )}
         </div>
 
-        {/* Comments Section - Enhanced */}
         <AnimatePresence>
           {showComments && (
             <motion.div
@@ -330,7 +349,6 @@ export default function PostCard({ post, onUpdate, disableMenu = false, isModal,
         )}
       </motion.article>
 
-      {/* Enhanced Delete Confirmation Modal */}
       <AnimatePresence>
         {confirmingDelete && (
           <motion.div

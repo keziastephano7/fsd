@@ -21,6 +21,11 @@ export default function CreatePost({ onCreated }) {
   const [fieldErrors, setFieldErrors] = useState({});
   const [dragActive, setDragActive] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [visibility, setVisibility] = useState('public');
+  const [groupOptions, setGroupOptions] = useState([]);
+  const [selectedGroupIds, setSelectedGroupIds] = useState([]);
+  const [groupsLoading, setGroupsLoading] = useState(false);
+  const [groupsError, setGroupsError] = useState('');
 
   const previewRef = useRef(null);
   const tagInputRef = useRef(null);
@@ -50,10 +55,39 @@ export default function CreatePost({ onCreated }) {
       setPreviewUrl('');
       setTags([]);
       setTagInput('');
+      setVisibility('public');
+      setSelectedGroupIds([]);
       setError('');
       setFieldErrors({});
       setIsExpanded(false);
+      setVisibility('public');
+      setGroupOptions([]);
+      setSelectedGroupIds([]);
+      setGroupsError('');
     }
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    let mounted = true;
+    const fetchGroups = async () => {
+      setGroupsLoading(true);
+      setGroupsError('');
+      try {
+        const res = await API.get('/groups');
+        if (!mounted) return;
+        setGroupOptions(res.data || []);
+      } catch (err) {
+        if (!mounted) return;
+        setGroupsError(err.response?.data?.message || 'Unable to load your groups.');
+      } finally {
+        if (mounted) setGroupsLoading(false);
+      }
+    };
+    fetchGroups();
+    return () => {
+      mounted = false;
+    };
   }, [user]);
 
   const addTag = (raw) => {
@@ -74,6 +108,15 @@ export default function CreatePost({ onCreated }) {
     } else if (e.key === 'Backspace' && !tagInput) {
       setTags(prev => prev.slice(0, -1));
     }
+  };
+
+  const toggleGroupSelection = (groupId) => {
+    setSelectedGroupIds(prev => {
+      if (prev.includes(groupId)) {
+        return prev.filter(id => id !== groupId);
+      }
+      return [...prev, groupId];
+    });
   };
 
   const handleFileChange = (e) => {
@@ -138,7 +181,8 @@ export default function CreatePost({ onCreated }) {
 
   const canSubmit = () => {
     const hasContent = caption.trim().length > 0 || file !== null;
-    return user && hasContent && !loading && caption.length <= MAX_CHAR;
+    const groupsValid = visibility === 'public' || selectedGroupIds.length > 0;
+    return user && hasContent && !loading && caption.length <= MAX_CHAR && groupsValid;
   };
 
   const submit = async (e) => {
@@ -156,10 +200,14 @@ export default function CreatePost({ onCreated }) {
     const merged = [...tags];
     for (const t of parsed) if (!merged.includes(t)) merged.push(t);
 
-    if (!canSubmit()) {
+  if (!canSubmit()) {
+    if (visibility === 'groups' && selectedGroupIds.length === 0) {
+      setError('Select at least one group to share this post with.');
+    } else {
       setError('Write something or attach an image before posting.');
-      return;
     }
+    return;
+  }
 
     if (caption.length > MAX_CHAR) {
       setFieldErrors({ caption: `Caption exceeds ${MAX_CHAR} characters.` });
@@ -172,6 +220,10 @@ export default function CreatePost({ onCreated }) {
       fd.append('caption', caption.trim());
       if (file) fd.append('image', file);
       if (merged.length) fd.append('tags', JSON.stringify(merged));
+      fd.append('visibility', visibility);
+      if (visibility === 'groups') {
+        fd.append('targetGroups', JSON.stringify(selectedGroupIds));
+      }
 
       const res = await API.post('/posts', fd);
       const created = res.data || {};
@@ -395,7 +447,102 @@ export default function CreatePost({ onCreated }) {
             )}
           </AnimatePresence>
 
-          {/* Image Upload */}
+        {/* Visibility Selector */}
+        <AnimatePresence>
+          {(isExpanded || visibility === 'groups') && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="space-y-3 overflow-hidden"
+            >
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-bold text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                  <svg className="w-4 h-4 text-cyan-500" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M3 4a2 2 0 012-2h2a2 2 0 012 2v2H3V4zM3 9h6v6H5a2 2 0 01-2-2V9zM11 4a2 2 0 012-2h2a2 2 0 012 2v6h-6V4zM11 13h6v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                  </svg>
+                  Visibility
+                </label>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setVisibility('public');
+                      setError('');
+                    }}
+                    className={`flex-1 px-4 py-2 rounded-2xl border-2 ${
+                      visibility === 'public'
+                        ? 'border-blue-500 text-blue-600 bg-blue-50 dark:bg-blue-900/20'
+                        : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400'
+                    }`}
+                  >
+                    Public
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setVisibility('groups');
+                      setIsExpanded(true);
+                    }}
+                    className={`flex-1 px-4 py-2 rounded-2xl border-2 ${
+                      visibility === 'groups'
+                        ? 'border-purple-500 text-purple-600 bg-purple-50 dark:bg-purple-900/20'
+                        : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400'
+                    }`}
+                  >
+                    Specific groups
+                  </button>
+                </div>
+                {visibility === 'groups' && (
+                  <div className="space-y-3">
+                    {groupsLoading ? (
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Loading groups…</p>
+                    ) : groupOptions.length === 0 ? (
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        You’re not in any groups yet. Create or join one to share privately.
+                      </p>
+                    ) : (
+                      <div className="flex flex-wrap gap-2">
+                        {groupOptions.map((group) => {
+                          const selected = selectedGroupIds.includes(group._id);
+                          return (
+                            <button
+                              key={group._id}
+                              type="button"
+                              onClick={() => {
+                                toggleGroupSelection(group._id);
+                                setError('');
+                              }}
+                              className={`px-4 py-2 rounded-2xl border text-sm transition-all ${
+                                selected
+                                  ? 'border-purple-500 text-purple-600 bg-purple-50 dark:bg-purple-900/30'
+                                  : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400'
+                              }`}
+                            >
+                              {group.name}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                    {groupsError && (
+                      <p className="text-sm text-red-500 bg-red-50 dark:bg-red-900/30 rounded-xl px-3 py-2">
+                        {groupsError}
+                      </p>
+                    )}
+                    {visibility === 'groups' && selectedGroupIds.length === 0 && (
+                      <p className="text-sm text-amber-600 bg-amber-50 dark:bg-amber-900/30 rounded-xl px-3 py-2">
+                        Select at least one group to share this post with.
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Image Upload */}
           <AnimatePresence>
             {(isExpanded || file) && (
               <motion.div

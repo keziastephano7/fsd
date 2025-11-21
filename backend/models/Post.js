@@ -22,6 +22,15 @@ const postSchema = new mongoose.Schema({
   likes: [{ 
     type: mongoose.Schema.Types.ObjectId, 
     ref: 'User' 
+  }],
+  visibility: {
+    type: String,
+    enum: ['public', 'groups'],
+    default: 'public'
+  },
+  targetGroups: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Group'
   }]
 }, { 
   timestamps: true 
