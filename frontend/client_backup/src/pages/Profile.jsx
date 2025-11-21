@@ -23,6 +23,13 @@ export default function Profile() {
   const [hoveredPost, setHoveredPost] = useState(null);
   const [showCreateOptions, setShowCreateOptions] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followProcessing, setFollowProcessing] = useState(false);
+  const [showFollowersModal, setShowFollowersModal] = useState(false);
+  const [followersList, setFollowersList] = useState([]);
+  const [loadingFollowers, setLoadingFollowers] = useState(false);
+  const [followersPrivate, setFollowersPrivate] = useState(false);
+  const [profilePrivate, setProfilePrivate] = useState(false);
   const mountedRef = useRef(true);
 
   useEffect(() => {
@@ -35,6 +42,12 @@ export default function Profile() {
         const res = await API.get(`/users/${id}`, { signal: controller.signal });
         if (!mountedRef.current) return;
         setProfile(res.data);
+        // set following state based on fetched profile
+        const currentId = user?.id || user?._id;
+        if (res.data && currentId) {
+          const followers = res.data.followers || [];
+          setIsFollowing(followers.some(f => String(f) === String(currentId)));
+        }
       } catch (err) {
         console.error('Failed to load profile', err);
       } finally {
@@ -47,7 +60,14 @@ export default function Profile() {
       try {
         const res = await API.get(`/posts?author=${id}`, { signal: controller.signal });
         if (!mountedRef.current) return;
-        setPosts(Array.isArray(res.data) ? res.data : []);
+        // backend returns { private: true } when profile is private
+        if (res.data && res.data.private) {
+          setProfilePrivate(true);
+          setPosts([]);
+        } else {
+          setProfilePrivate(false);
+          setPosts(Array.isArray(res.data) ? res.data : []);
+        }
       } catch (err) {
         console.error('Failed to load posts', err);
       } finally {
@@ -236,6 +256,66 @@ export default function Profile() {
           <CreatePost
             onCreated={handlePostCreated}
           />
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>,
+    document.body
+  ) : null;
+
+  const FollowersModalPortal = showFollowersModal ? createPortal(
+    <AnimatePresence mode="wait">
+      <motion.div
+        key="followers-modal"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.15 }}
+        className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+        onClick={() => setShowFollowersModal(false)}
+        aria-modal="true"
+        role="dialog"
+      >
+        <motion.div
+          initial={{ scale: 0.98, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.98, opacity: 0 }}
+          transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+          className="max-w-md w-full bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-4"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-lg font-semibold">Followers</h3>
+            <button onClick={() => setShowFollowersModal(false)} className="text-gray-500">Close</button>
+          </div>
+
+          {followersPrivate ? (
+            <div className="text-center text-gray-500 py-6">This list is private — only the account owner and followers can view it.</div>
+          ) : loadingFollowers ? (
+            <div className="space-y-2">
+              {[1,2,3].map(i => (
+                <div key={i} className="h-12 bg-gray-100 dark:bg-gray-700 rounded-md animate-pulse" />
+              ))}
+            </div>
+          ) : followersList.length === 0 ? (
+            <div className="text-center text-gray-500 py-6">No followers yet</div>
+          ) : (
+            <div className="space-y-2">
+              {followersList.map(f => (
+                <Link to={`/profile/${f._id}`} key={f._id} onClick={() => setShowFollowersModal(false)} className="flex items-center gap-3 p-2 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700">
+                  <div className="w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-semibold">
+                    {f.avatarUrl ? (
+                      <img src={buildUrl(f.avatarUrl)} alt={f.name} className="w-full h-full object-cover" />
+                    ) : (
+                      (f.name || 'U').charAt(0).toUpperCase()
+                    )}
+                  </div>
+                  <div>
+                    <div className="font-medium text-sm text-gray-900 dark:text-white">{f.name}</div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
         </motion.div>
       </motion.div>
     </AnimatePresence>,
@@ -538,8 +618,32 @@ export default function Profile() {
                     <span className="text-gray-600 dark:text-gray-400">posts</span>
                   </div>
                   <div className="flex items-center gap-1">
-                    <span className="font-semibold text-gray-900 dark:text-white">{profile?.followers?.length || 0}</span>
-                    <span className="text-gray-600 dark:text-gray-400">followers</span>
+                      <button
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          setShowFollowersModal(true);
+                          setLoadingFollowers(true);
+                          setFollowersPrivate(false);
+                          try {
+                            const res = await API.get(`/users/${id}/followers`);
+                            setFollowersList(Array.isArray(res.data) ? res.data : []);
+                          } catch (err) {
+                            console.error('Failed to load followers', err);
+                            // If backend returns 403 with { private: true }
+                            if (err.response && (err.response.status === 403 || (err.response.data && err.response.data.private))) {
+                              setFollowersPrivate(true);
+                            } else {
+                              setFollowersList([]);
+                            }
+                          } finally {
+                            setLoadingFollowers(false);
+                          }
+                        }}
+                        className="flex items-center gap-2"
+                      >
+                        <span className="font-semibold text-gray-900 dark:text-white">{profile?.followers?.length || 0}</span>
+                        <span className="text-gray-600 dark:text-gray-400">followers</span>
+                      </button>
                   </div>
                   <div className="flex items-center gap-1">
                     <span className="font-semibold text-gray-900 dark:text-white">{thoughts.length}</span>
@@ -549,8 +653,46 @@ export default function Profile() {
 
                 {!isOwner && (
                   <div className="flex gap-3 pt-2">
-                    <button className="px-5 py-2 bg-black dark:bg-white text-white dark:text-black rounded-2xl text-sm font-medium hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors shadow-sm">
-                      Follow
+                    <button
+                      onClick={async (e) => {
+                          e.stopPropagation();
+                          if (followProcessing) return;
+                          setFollowProcessing(true);
+                          try {
+                            // Optimistic UI update
+                            setIsFollowing(prev => !prev);
+                            // Call API
+                            if (!isFollowing) {
+                              await API.put(`/users/${id}/follow`);
+                              // add current user to profile.followers locally
+                              setProfile(prev => prev ? { ...prev, followers: [...(prev.followers || []), (user?.id || user?._id)] } : prev);
+                              // After following, fetch the author's posts and show them
+                              try {
+                                const postsRes = await API.get(`/posts?author=${id}`);
+                                setProfilePrivate(false);
+                                setPosts(Array.isArray(postsRes.data) ? postsRes.data : []);
+                              } catch (fetchErr) {
+                                console.error('Failed to fetch posts after follow', fetchErr);
+                              }
+                            } else {
+                              await API.put(`/users/${id}/unfollow`);
+                              setProfile(prev => prev ? { ...prev, followers: (prev.followers || []).filter(f => String(f) !== String(user?.id || user?._id)) } : prev);
+                              // After unfollowing, hide posts from this profile
+                              setPosts([]);
+                              setProfilePrivate(true);
+                            }
+                          } catch (err) {
+                            console.error('Follow toggle failed', err);
+                            // revert optimistic update
+                            setIsFollowing(prev => !prev);
+                          } finally {
+                            setFollowProcessing(false);
+                          }
+                        }}
+                      className={`px-5 py-2 rounded-2xl text-sm font-medium transition-colors shadow-sm ${isFollowing ? 'bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-600' : 'bg-black dark:bg-white text-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200'}`}
+                      disabled={followProcessing}
+                    >
+                      {isFollowing ? 'Following' : 'Follow'}
                     </button>
                     <button className="px-5 py-2 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 rounded-2xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm">
                       Message

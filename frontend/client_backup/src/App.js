@@ -8,6 +8,8 @@ import Feed from './pages/Feed';
 import Profile from './pages/Profile';
 import EditProfile from './pages/EditProfile';
 import CreatePostPage from './pages/CreatePost';
+import FollowersPage from './pages/FollowersPage';
+import FollowingPage from './pages/FollowingPage';
 import Navbar from './components/Navbar';
 import { AuthContext } from './AuthContext';
 import TagPage from './pages/TagPage';
@@ -32,6 +34,8 @@ function App() {
               <Route path="/login" element={<Login />}/>
               <Route path="/profile/:id" element={<Profile />} />
               <Route path="/profile/:id/edit" element={<EditProfile />} />
+              <Route path="/profile/:id/followers" element={<FollowersPage />} />
+              <Route path="/profile/:id/following" element={<FollowingPage />} />
               <Route path="/create" element={<CreatePostPage />} />
               <Route path="/tag/:tag" element={<TagPage />} />
             </Routes>
