@@ -1,32 +1,23 @@
-const nodemailer = require('nodemailer');
+const sgMail = require('@sendgrid/mail');
 
-// Create transporter using SMTP configuration from environment variables
-const createTransporter = () => {
-  return nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: parseInt(process.env.SMTP_PORT, 10) || 587,
-    secure: process.env.SMTP_SECURE === 'true', // true for 465, false for other ports
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS
-    }
-  });
-};
+// Initialize SendGrid API key
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 // Generate 6-digit OTP
 const generateOTP = () => {
   return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
-// Send OTP email
+// Send OTP email using SendGrid
 const sendOTPEmail = async (email, otp, userName) => {
   try {
-    const transporter = createTransporter();
-    
-    const mailOptions = {
-      from: `"${process.env.SMTP_FROM_NAME || 'Luna'}" <${process.env.SMTP_USER}>`,
+    const msg = {
       to: email,
-      subject: 'Verify Your Email - Luna',
+      from: {
+        name: process.env.SENDGRID_FROM_NAME || "Luna",
+        email: process.env.SENDGRID_FROM_EMAIL // Must be verified in SendGrid
+      },
+      subject: "Verify Your Email - Luna",
       html: `
         <!DOCTYPE html>
         <html>
@@ -65,25 +56,24 @@ const sendOTPEmail = async (email, otp, userName) => {
       `,
       text: `
         Welcome to Luna!
-        
+
         Hi ${userName},
-        
-        Thank you for signing up! Please verify your email address by entering the OTP below:
-        
+
         Your verification code is: ${otp}
-        
+
         This code will expire in 10 minutes.
-        
+
         If you didn't create an account, please ignore this email.
       `
     };
 
-    const info = await transporter.sendMail(mailOptions);
-    console.log('OTP email sent:', info.messageId);
-    return { success: true, messageId: info.messageId };
+    const response = await sgMail.send(msg);
+    console.log("OTP email sent:", response[0].statusCode);
+
+    return { success: true, statusCode: response[0].statusCode };
   } catch (error) {
-    console.error('Error sending OTP email:', error);
-    throw new Error('Failed to send OTP email');
+    console.error("Error sending OTP email:", error.response ? error.response.body : error);
+    throw new Error("Failed to send OTP email");
   }
 };
 
@@ -91,4 +81,3 @@ module.exports = {
   generateOTP,
   sendOTPEmail
 };
-
