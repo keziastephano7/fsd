@@ -363,4 +363,24 @@ router.post('/:id/like', auth, async (req, res) => {
   }
 });
 
+// GET /api/posts/:id/likes - list users who liked (enforces group visibility)
+router.get('/:id/likes', async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.id).populate({ path: 'likes', select: 'name username avatarUrl' });
+    if (!post) return res.status(404).json({ message: 'Post not found' });
+
+    if (post.visibility === 'groups') {
+      const viewerId = extractUserId(req);
+      if (!viewerId) return res.status(401).json({ message: 'Authentication required to view likes' });
+      const isMember = await Group.exists({ _id: { $in: post.targetGroups }, members: viewerId });
+      if (!isMember) return res.status(403).json({ message: 'You do not have access to view likes for this post' });
+    }
+
+    return res.json({ likers: post.likes });
+  } catch (err) {
+    console.error('Error fetching likers:', err);
+    return res.status(500).json({ message: 'Server error' });
+  }
+});
+
 module.exports = router;
