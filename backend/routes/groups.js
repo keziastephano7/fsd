@@ -4,6 +4,7 @@ const auth = require('../middleware/auth');
 const Group = require('../models/Group');
 const GroupInvite = require('../models/GroupInvite');
 const User = require('../models/User');
+const Notification = require('../models/Notification');
 
 const router = express.Router();
 
@@ -119,6 +120,22 @@ router.post(
       }
 
       await invite.save();
+      // notify the inviter about the response (accept/decline)
+      try {
+        const payload = {
+          type: 'group_invite_response',
+          actor: req.userId, // the invitee who responded
+          recipient: invite.inviter,
+          group: invite.group._id || invite.group,
+          invite: invite._id,
+          action: action
+        };
+        const respNotif = await Notification.create(payload);
+        console.debug('Group invite response notification created:', respNotif && respNotif._id);
+      } catch (e) {
+        console.error('Failed to create invite response notification:', e && e.message ? e.message : e);
+      }
+
       res.json({ message: `Invite ${action}ed successfully` });
     } catch (err) {
       console.error('Error responding to invite:', err);
@@ -197,7 +214,24 @@ router.post(
         { path: 'invitee', select: 'name email' }
       ]);
 
-      res.status(201).json(populatedInvite);
+      // Create a notification for the invitee so they are notified of the group invite
+      let notif = null;
+      try {
+        const payload = {
+          type: 'group_invite',
+          actor: req.userId,
+          recipient: invitee._id,
+          group: groupId,
+          invite: invite._id
+        };
+        notif = await Notification.create(payload);
+        console.debug('Group invite notification created:', notif && notif._id);
+      } catch (e) {
+        console.error('Failed to create group invite notification:', e && e.message ? e.message : e);
+      }
+
+      // Return the invite and created notification id (if any) to the caller
+      res.status(201).json({ invite: populatedInvite, notificationId: notif?._id || null });
     } catch (err) {
       console.error('Error inviting member:', err);
       res.status(500).json({ message: 'Server error' });
