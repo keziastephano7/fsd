@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 import CommentList from './CommentList';
 import CommentForm from './CommentForm';
 import EditPost from './EditPost';
+import LikedUsersModal from './LikedUsersModal';
 import { AuthContext } from '../AuthContext';
 import { buildUrl } from '../utils/url';
 import TagChip from './TagChip';
@@ -19,6 +20,7 @@ export default function PostCard({ post, onUpdate, disableMenu = false, isModal,
   const [commentsVersion, setCommentsVersion] = useState(0);
   const [isLiking, setIsLiking] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const [showLikers, setShowLikers] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleteError, setDeleteError] = useState('');
 
@@ -234,35 +236,42 @@ export default function PostCard({ post, onUpdate, disableMenu = false, isModal,
 
         <div className="p-4 space-y-3">
           <div className="flex items-center gap-6">
-            <motion.button
-              onClick={toggleLike}
-              disabled={isLiking}
-              whileTap={{ scale: 0.95 }}
-              className={`flex items-center gap-2 p-2 rounded-xl transition-all duration-200 ${
-                liked 
-                  ? 'bg-red-50 dark:bg-red-900/30 text-red-600' 
-                  : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400'
-              }`}
-              aria-pressed={liked}
-              aria-label={liked ? 'Unlike post' : 'Like post'}
-            >
-              <svg
-                className={`w-5 h-5 ${liked ? 'fill-current' : ''}`}
-                fill={liked ? 'currentColor' : 'none'}
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+            <div className="flex items-center gap-3">
+              <motion.button
+                onClick={toggleLike}
+                disabled={isLiking}
+                whileTap={{ scale: 0.95 }}
+                className={`p-2 rounded-xl transition-all duration-200 ${
+                  liked 
+                    ? 'bg-red-50 dark:bg-red-900/30 text-red-600' 
+                    : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400'
+                }`}
+                aria-pressed={liked}
+                aria-label={liked ? 'Unlike post' : 'Like post'}
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={liked ? 0 : 2}
-                  d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
-                />
-              </svg>
-              <span className={`font-semibold text-sm ${liked ? 'text-red-600' : 'text-gray-700 dark:text-gray-300'}`}>
-                {likes}
-              </span>
-            </motion.button>
+                <svg
+                  className={`w-5 h-5 ${liked ? 'fill-current' : ''}`}
+                  fill={liked ? 'currentColor' : 'none'}
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={liked ? 0 : 2}
+                    d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
+                  />
+                </svg>
+              </motion.button>
+
+              <button
+                onClick={() => setShowLikers(true)}
+                className="flex items-center gap-2 p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400"
+                aria-label="View users who liked"
+              >
+                <span className={`font-semibold text-sm ${liked ? 'text-red-600' : 'text-gray-700 dark:text-gray-300'}`}>{likes}</span>
+              </button>
+            </div>
 
             <motion.button
               onClick={() => setShowComments(s => !s)}
@@ -347,6 +356,7 @@ export default function PostCard({ post, onUpdate, disableMenu = false, isModal,
             onSaved={onUpdate}
           />
         )}
+        <LikedUsersModal postId={post._id} open={showLikers} onClose={() => setShowLikers(false)} />
       </motion.article>
 
       <AnimatePresence>
