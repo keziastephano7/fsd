@@ -537,26 +537,14 @@ export default function Profile() {
                     <span className="font-semibold text-gray-900 dark:text-white">{mediaPosts.length}</span>
                     <span className="text-gray-600 dark:text-gray-400">posts</span>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <span className="font-semibold text-gray-900 dark:text-white">{profile?.followers?.length || 0}</span>
-                    <span className="text-gray-600 dark:text-gray-400">followers</span>
-                  </div>
+    
                   <div className="flex items-center gap-1">
                     <span className="font-semibold text-gray-900 dark:text-white">{thoughts.length}</span>
                     <span className="text-gray-600 dark:text-gray-400">thoughts</span>
                   </div>
                 </div>
 
-                {!isOwner && (
-                  <div className="flex gap-3 pt-2">
-                    <button className="px-5 py-2 bg-black dark:bg-white text-white dark:text-black rounded-2xl text-sm font-medium hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors shadow-sm">
-                      Follow
-                    </button>
-                    <button className="px-5 py-2 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 rounded-2xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm">
-                      Message
-                    </button>
-                  </div>
-                )}
+  
               </div>
             </div>
           </div>
