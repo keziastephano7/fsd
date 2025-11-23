@@ -426,7 +426,14 @@ export default function CreatePost({ onCreated }) {
                     onChange={e => setTagInput(e.target.value)}
                     onKeyDown={handleTagKeyDown}
                     placeholder="Add tags..."
-                    className="flex-1 px-3 py-2 rounded-xl bg-gray-100 dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 text-sm transition"
+                    className="
+    flex-1 px-3 py-2 rounded-xl 
+    bg-gray-100 dark:bg-gray-800 
+    border-2 border-gray-200 dark:border-gray-700 
+    focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 
+    text-sm transition
+    text-gray-900 dark:text-white
+  "
                     aria-label="Add tags"
                   />
                   <motion.button

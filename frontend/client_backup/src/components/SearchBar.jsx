@@ -96,7 +96,17 @@ export default function SearchBar() {
                 onChange={e => setSearchQuery(e.target.value)}
                 onFocus={() => setIsOpen(true)}
                 placeholder="Search users or tags..."
-                className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-sm placeholder-gray-500 dark:placeholder-gray-400 transition-all duration-200 shadow-sm"
+                className="
+  w-full pl-10 pr-10 py-2.5 rounded-xl 
+  bg-white dark:bg-gray-800 
+  border border-gray-200 dark:border-gray-700 
+  focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 
+  text-sm 
+  text-gray-900 dark:text-white
+  placeholder-gray-400 dark:placeholder-gray-500
+  transition-all duration-200 shadow-sm
+  focus:shadow-blue-500/20
+"
                 autoFocus
                 aria-label="Search users or tags"
                 aria-expanded={isOpen}
