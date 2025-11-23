@@ -98,7 +98,7 @@ export default function Navbar() {
     setIsNotifOpen(false);
   }, [location]);
 
-  // fetch unread count periodically
+  // fetch unread count periodically (shorter interval) and on focus/events
   useEffect(() => {
     let mounted = true;
     const getCount = async () => {
@@ -109,9 +109,25 @@ export default function Navbar() {
         // ignore (not logged in)
       }
     };
+
     getCount();
-    const t = setInterval(getCount, 15000); // refresh every 15s
-    return () => { mounted = false; clearInterval(t); };
+    const intervalMs = 200; // poll every 5s for faster updates
+    const t = setInterval(getCount, intervalMs);
+
+    // Refresh when the window/tab regains focus for quicker updates
+    const onFocus = () => getCount();
+    window.addEventListener('focus', onFocus);
+
+    // Allow other parts of the app to request a refresh
+    const onNotifRefresh = () => getCount();
+    window.addEventListener('notification:refresh', onNotifRefresh);
+
+    return () => {
+      mounted = false;
+      clearInterval(t);
+      window.removeEventListener('focus', onFocus);
+      window.removeEventListener('notification:refresh', onNotifRefresh);
+    };
   }, []);
 
   const openNotifications = async () => {
@@ -348,15 +364,26 @@ export default function Navbar() {
                           )}
                           {notifications.map((n) => (
                             <div key={n._id} onClick={() => { 
-                                const dest = `/posts/${n.post?._id || n.post}`;
-                                console.debug('Notification click:', n, 'n.post ->', n.post, 'navigate to', dest);
+                                let dest = '/posts';
+                                if (n.type === 'like' || n.type === 'comment') {
+                                  dest = `/posts/${n.post?._id || n.post}`;
+                                } else if (n.type === 'group_invite' || n.type === 'group_invite_response') {
+                                  // navigate directly to the group page if available
+                                  const gid = n.group?._id || n.group;
+                                  dest = gid ? `/groups/${gid}` : '/groups';
+                                }
+                                console.debug('Notification click:', n, 'navigate to', dest);
                                 setIsNotifOpen(false); 
                                 navigate(dest);
                               }} className="flex items-start gap-3 p-3 hover:bg-gray-50 dark:hover:bg-gray-700/40 cursor-pointer">
                               <img src={n.actor?.avatarUrl || '/images/default-avatar.png'} alt={n.actor?.name} className="w-9 h-9 rounded-full object-cover" />
                               <div className="flex-1">
                                 <div className="text-sm text-gray-800 dark:text-gray-200">{
-                                  n.type === 'like' ? `${n.actor?.name || 'Someone'} liked your post` : `${n.actor?.name || 'Someone'} commented: ${n.comment?.text || ''}`
+                                  n.type === 'like' ? `${n.actor?.name || 'Someone'} liked your post`
+                                  : n.type === 'comment' ? `${n.actor?.name || 'Someone'} commented: ${n.comment?.text || ''}`
+                                  : n.type === 'group_invite' ? `${n.actor?.name || 'Someone'} invited you to ${n.group?.name || 'a group'}`
+                                  : n.type === 'group_invite_response' ? `${n.actor?.name || 'Someone'} ${n.action === 'accept' ? 'accepted' : 'declined'} your invite to ${n.group?.name || 'a group'}`
+                                  : `${n.actor?.name || 'Someone'} sent a notification`
                                 }</div>
                                 <div className="text-xs text-gray-500 mt-1">{new Date(n.createdAt).toLocaleString()}</div>
                               </div>
