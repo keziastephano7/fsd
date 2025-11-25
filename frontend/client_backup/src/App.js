@@ -36,6 +36,7 @@ function App() {
               <Route path="/create" element={<CreatePostPage />} />
               <Route path="/tag/:tag" element={<TagPage />} />
               <Route path="/groups" element={<Groups />} />
+              <Route path="/groups/:groupId" element={<Groups />} />
             </Routes>
           </main>
         </div>

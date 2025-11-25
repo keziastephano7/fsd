@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo, useContext, useRef, useCallback } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import API from '../api';
 import { AuthContext } from '../AuthContext';
@@ -229,6 +230,8 @@ GroupCard.displayName = 'GroupCard';
 
 export default function Groups() {
   const { user, updateUser } = useContext(AuthContext); // Added updateUser
+  const { groupId: routeGroupId } = useParams();
+  const navigate = useNavigate();
   const [groups, setGroups] = useState([]);
   const [invites, setInvites] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -405,8 +408,21 @@ export default function Groups() {
   }, [user]); // Added user dependency
 
   const handleToggleActive = useCallback((groupId) => {
-    setActiveGroupId(prev => prev === groupId ? null : groupId);
+    setActiveGroupId(prev => {
+      const next = prev === groupId ? null : groupId;
+      // update URL to reflect active group
+      try {
+        if (next) navigate(`/groups/${next}`, { replace: false });
+        else navigate('/groups', { replace: false });
+      } catch (e) {}
+      return next;
+    });
   }, []);
+
+  // If route param changes, set active group accordingly
+  useEffect(() => {
+    if (routeGroupId) setActiveGroupId(routeGroupId);
+  }, [routeGroupId]);
 
   // Memoize the groups rendering to prevent unnecessary re-renders
   const groupsList = useMemo(() => {

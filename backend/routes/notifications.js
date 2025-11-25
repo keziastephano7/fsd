@@ -10,6 +10,8 @@ router.get('/', auth, async (req, res) => {
       .populate('actor', 'name avatarUrl')
       .populate('post', '_id caption imageUrl')
       .populate('comment', 'text')
+      .populate('group', 'name')
+      .populate('invite', 'status')
       .sort({ createdAt: -1 })
       .limit(50);
     res.json(notifications);
