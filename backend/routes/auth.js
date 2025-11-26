@@ -18,24 +18,49 @@ router.post(
   async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      // Return array of validation errors
       return res.status(400).json({ errors: errors.array() });
     }
 
     try {
       const { name, email, password } = req.body;
 
-      let existing = await User.findOne({ email });
-      if (existing) {
-        return res.status(400).json({ message: 'User already exists' });
+      // Check if user exists REGARDLESS of verification status
+      let existingUser = await User.findOne({ email });
+      
+      if (existingUser) {
+        if (existingUser.isEmailVerified) {
+          return res.status(400).json({ message: 'User already exists. Please login.' });
+        } else {
+          // User exists but not verified - update their details and send new OTP
+          const otp = generateOTP();
+          const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
+
+          const salt = await bcrypt.genSalt(10);
+          const hashed = await bcrypt.hash(password, salt);
+
+          existingUser.name = name;
+          existingUser.password = hashed;
+          existingUser.emailVerificationOTP = otp;
+          existingUser.otpExpires = otpExpires;
+          await existingUser.save();
+
+          // Send new OTP email
+          await sendOTPEmail(email, otp, name);
+
+          return res.status(200).json({
+            message: 'Verification OTP sent again. Please verify your email.',
+            email,
+            isResend: true
+          });
+        }
       }
+
+      // New user - create unverified record
+      const otp = generateOTP();
+      const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
 
       const salt = await bcrypt.genSalt(10);
       const hashed = await bcrypt.hash(password, salt);
-
-      // Generate OTP and expiry (10 minutes)
-      const otp = generateOTP();
-      const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
 
       const user = new User({
         name,
@@ -51,13 +76,18 @@ router.post(
       // Send OTP email
       await sendOTPEmail(email, otp, name);
 
-      // Do NOT log in yet – just inform client that OTP was sent
       return res.status(200).json({
         message: 'Registration successful. Please verify your email using the OTP sent.',
         email,
       });
     } catch (err) {
       console.error('Error in register:', err);
+      
+      // Handle duplicate key error (unique email constraint)
+      if (err.code === 11000) {
+        return res.status(400).json({ message: 'User already exists' });
+      }
+      
       return res.status(500).json({ message: 'Server error' });
     }
   }
