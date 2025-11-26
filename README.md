@@ -1,23 +1,10 @@
 # Social App
 
-Simple local dev instructions
+Dev instructions
 
-Prerequisites:
+**Prerequisites**:
 - Node.js (v16+)
-- MongoDB running locally (or use Atlas)
+- MongoDB running locally and Atlas.
 
-Backend
-1. cd backend
-2. npm install
-3. npm start -- --reset-cache
-   - Server runs at http://localhost:5000
-
-Frontend
-1. cd frontend/client
-2. npm install
-3. npm start -- --reset-cache
-   - App runs at http://localhost:3000
-
-Notes
-- Place your JWT secret and MongoDB connection string in the backend .env file (see .env.example).
-- Uploaded images are saved to backend/uploads/ (local dev). Do not commit that folder.
+We have deployed the application using render, which can be accessed via the attached link below:
+https://luna-zt2o.onrender.com/
